@@ -1082,22 +1082,26 @@
         let CLIENT_ID;
         const DISCOVERY_DOCS = ['https://www.googleapis.com/discovery/v1/apis/tasks/v1/rest', 'https://www.googleapis.com/discovery/v1/apis/calendar/v3/rest'];
         const SCOPES = 'https://www.googleapis.com/auth/tasks https://www.googleapis.com/auth/calendar.events';
-
+    
+        // This is our main startup function
         async function startApp() {
           try {
             // 1. Fetch the secret keys from our Vercel function
             const response = await fetch('/api/get-keys');
+            if (!response.ok) {
+              throw new Error(`API call failed with status: ${response.status}`);
+            }
             const keys = await response.json();
             
             API_KEY = keys.apiKey;
             CLIENT_ID = keys.clientId;
     
             // 2. Load the necessary Google libraries
-            await new Promise((resolve, reject) => gapi.load('client', resolve));
+            await new Promise((resolve) => gapi.load('client', resolve));
             
             // 3. Now that we have the keys AND the libraries are loaded, initialize them
             await initializeGapiClient();
-            gisLoaded();
+            initializeGisClient();
     
             // 4. Finally, initialize the rest of your game
             initGame();
@@ -1107,10 +1111,10 @@
             alert("A critical error occurred while starting the app. Please refresh.");
           }
         }
-
-    // This function now uses the keys we fetched
+    
+        // This function now uses the keys we fetched
         async function initializeGapiClient() {
-            if (!API_KEY) return console.error("API Key is not available.");
+            if (!API_KEY) throw new Error("API Key is not available.");
             await gapi.client.init({
                 apiKey: API_KEY,
                 discoveryDocs: DISCOVERY_DOCS
@@ -1119,9 +1123,9 @@
             maybeEnableAuthButton();
         }
     
-        // This function also uses the keys we fetched
-        function gisLoaded() {
-            if (!CLIENT_ID) return console.error("Client ID is not available.");
+        // Renamed for clarity, this function also uses the keys we fetched
+        function initializeGisClient() {
+            if (!CLIENT_ID) throw new Error("Client ID is not available.");
             tokenClient = google.accounts.oauth2.initTokenClient({
                 client_id: CLIENT_ID,
                 scope: SCOPES,
@@ -1135,14 +1139,8 @@
         }
     
         // This triggers the entire process once the page is ready
-        window.onload = () => {
-          startApp();
-        };
-
-        
-        const googleApiScript = document.querySelector('script[src^="https://apis.google.com/js/api.js"]');
-        googleApiScript.onload = () => {
-            fetchKeysAndInit();
+        window.onload = startApp;
+            
         function maybeEnableAuthButton() {
             if (gapiInited && gisInited) {
                 const sidebarBtn = document.getElementById('sidebar-auth-button');
@@ -3222,4 +3220,5 @@
 
 </body>
 </html>
+
 
