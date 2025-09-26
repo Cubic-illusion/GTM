@@ -1,0 +1,3187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QuestList — A Gamified Life</title>
+
+    <script src="config.js"></script>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700&display=swap" rel="stylesheet">
+    
+    <script async defer src="https://apis.google.com/js/api.js" onload="gapiLoaded()"></script>
+    <script async defer src="https://accounts.google.com/gsi/client" onload="gisLoaded()"></script>
+    
+    <style>
+        :root {
+            --bg-primary: #ffffff;
+            --bg-secondary: #edf2f7;
+            --border: #e2e8f0;
+            --text-primary: #2d3748;
+            --text-secondary: #4a5568;
+            --text-muted: #718096;
+            --accent-primary: #805ad5;
+            --accent-primary-hover: #6b46c1;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --shadow: 0 4px 20px 0 rgba(0, 0, 0, 0.05);
+            --font-body: 'Lato', sans-serif;
+        }
+
+        body.dark-theme {
+            --bg-primary: #212121;
+            --bg-secondary: #2d2d2d;
+            --border: #424242;
+            --text-primary: #f5f5f5;
+            --text-secondary: #bdbdbd;
+            --text-muted: #757575;
+            --accent-primary: #bca0dc;
+            --accent-primary-hover: #a88bc7;
+            --shadow: 0 4px 20px 0 rgba(0, 0, 0, 0.2);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: var(--font-body);
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
+            font-size: 16px;
+            font-weight: 400;
+            line-height: 1.6;
+            transition: background-color 0.3s, color 0.3s;
+        }
+
+        .app-layout { display: flex; }
+        .main-view { display: none; }
+        .main-view.active { display: block; }
+
+        .sidebar {
+            width: 260px;
+            height: 100vh;
+            background-color: var(--bg-secondary);
+            border-right: 1px solid var(--border);
+            padding: 2rem 1.5rem;
+            display: flex;
+            flex-direction: column;
+            position: fixed;
+            transition: background-color 0.3s, border-color 0.3s;
+            z-index: 100;
+        }
+        
+        .sidebar-header {
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-bottom: 2.5rem;
+        }
+
+        .sidebar-nav { flex-grow: 1; }
+        .sidebar-nav ul { list-style: none; padding: 0; }
+        .sidebar-nav li a {
+            display: block;
+            padding: 0.75rem 0;
+            text-decoration: none;
+            color: var(--text-secondary);
+            font-weight: 700;
+            border-bottom: 1px solid var(--border);
+            transition: color 0.2s, border-color 0.3s;
+            cursor: pointer;
+        }
+        .sidebar-nav li:first-child a { border-top: 1px solid var(--border); }
+        .sidebar-nav li a:hover, .sidebar-nav li a.active { color: var(--accent-primary); }
+        
+        .sidebar-footer {
+            border-top: 1px solid var(--border);
+            padding-top: 1rem;
+            color: var(--text-secondary);
+            transition: border-color 0.3s;
+            font-size: 0.9rem;
+        }
+        .sidebar-footer-stats {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 0.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .main-content {
+            flex-grow: 1;
+            padding: 2rem 3rem;
+            margin-left: 260px;
+        }
+
+        .header {
+            margin-bottom: 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+
+        .header h1, .header h2 {
+            font-size: 2.5rem;
+            font-weight: 300;
+            letter-spacing: 1px;
+            color: var(--text-primary);
+            margin: 0;
+        }
+        .header h2 { font-size: 2rem; }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+        
+        .card {
+            background: var(--bg-primary);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 1.5rem;
+            box-shadow: var(--shadow);
+            transition: background-color 0.3s, border-color 0.3s, box-shadow 0.3s;
+        }
+
+        .card-title {
+            font-size: 1.2rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+            color: var(--text-secondary);
+        }
+
+        .card-description {
+            color: var(--text-muted);
+            font-size: 0.9rem;
+            margin-bottom: 1rem;
+        }
+        
+        .progress-bar {
+            width: 100%;
+            height: 0.5rem;
+            background: var(--border); 
+            border-radius: 4px;
+            overflow: hidden;
+            transition: background-color 0.3s;
+        }
+
+        .progress-fill {
+            height: 100%;
+            width: 0%;
+            background: var(--accent-primary);
+            border-radius: 4px;
+            transition: width 0.3s, background-color 0.3s;
+        }
+        
+        .tasks-section h2 {
+            font-size: 2rem;
+            font-weight: 300;
+            margin-top: 2rem;
+            margin-bottom: 1.5rem;
+        }
+        
+        .task-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: var(--bg-primary);
+            border: 1px solid var(--border);
+            padding: 1rem;
+            margin-bottom: 1rem;
+            border-radius: 8px;
+            transition: all 0.2s ease-in-out;
+            cursor: pointer;
+        }
+        
+        .task-item:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+            border-color: var(--accent-primary);
+        }
+
+        .task-item.completed {
+            opacity: 0.6;
+            background: var(--bg-secondary);
+        }
+        
+        .task-item.completed .task-info {
+            text-decoration: line-through;
+            color: var(--text-muted);
+        }
+        
+        .btn {
+            font-family: var(--font-body);
+            font-size: 0.9rem;
+            font-weight: 700;
+            padding: 0.6rem 1.2rem;
+            cursor: pointer;
+            text-decoration: none;
+            transition: all 0.2s;
+            border-radius: 6px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+        }
+
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        
+        .btn-primary { background: var(--accent-primary); border: 1px solid var(--accent-primary); color: white; }
+        body.dark-theme .btn-primary { color: #212121; }
+        .btn-primary:hover:not(:disabled) { background: var(--accent-primary-hover); border-color: var(--accent-primary-hover); }
+
+        .btn-secondary { background: transparent; border: 1px solid var(--border); color: var(--text-secondary); }
+        .btn-secondary:hover:not(:disabled) { border-color: var(--accent-primary); color: var(--accent-primary); }
+
+        .btn-danger { background: transparent; border: 1px solid var(--danger); color: var(--danger); }
+        .btn-danger:hover:not(:disabled) { background: var(--danger); color: white; }
+
+        .btn-ghost { background: transparent; border: none; color: var(--text-muted); }
+        .btn-ghost:hover:not(:disabled) { color: var(--accent-primary); background-color: var(--bg-secondary); }
+        
+        .icon { width: 1.2rem; height: 1.2rem; stroke: currentColor; fill: none; stroke-width: 2; }
+
+        .input, .select {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+            font-family: var(--font-body);
+            font-size: 1rem;
+            transition: all 0.2s;
+        }
+
+        .focus-display-task-item {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            padding: 0.75rem 1rem;
+            margin-top: 0.75rem;
+            border-radius: 8px;
+            text-align: left;
+            width: 100%;
+        }
+
+        .input:focus, .select:focus {
+            outline: none;
+            border-color: var(--accent-primary);
+            box-shadow: 0 0 0 3px rgba(128, 90, 213, 0.2);
+        }
+
+        .focus-display-task-item { /* Changed from .focus-task-item */
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .focus-task-actions {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+        .btn-sm {
+            padding: 0.25rem 0.6rem;
+            font-size: 0.8rem;
+        }
+
+        .btn-icon {
+            padding: 0.5rem; /* Make the button a neat square */
+            line-height: 1;
+        }
+
+        .icon-delete {
+            width: 1.1rem; /* Adjust icon size as needed */
+            height: 1.1rem;
+            stroke: currentColor;
+        }
+
+        /* This combines the container box with the individual sub-task cards */
+
+        /* The main container that acts as the full-width "box" */
+        .subtasks-container {
+            display: none;
+            background-color: var(--bg-secondary); /* The box background */
+            border: 1px solid var(--border);
+            border-top: none;
+            padding: 1rem; /* Space between the box edge and the inner cards */
+            border-bottom-left-radius: 8px;
+            border-bottom-right-radius: 8px;
+            margin-left: 0; /* Makes the box full-width */
+            margin-bottom: 1rem;
+        }
+
+        /* Ensures the parent task connects seamlessly to the box below it */
+        .task-item.is-parent {
+            border-bottom-left-radius: 0;
+            border-bottom-right-radius: 0;
+            margin-bottom: 0;
+        }
+
+        /* Styles each sub-task as a distinct card *inside* the box */
+        .sub-task {
+            background: var(--bg-primary); /* Card background */
+            border: 1px solid var(--border);
+            box-shadow: var(--shadow);
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 0.75rem !important;
+        }
+
+        /* Removes the extra space after the last card in the box */
+        .sub-task:last-child {
+            margin-bottom: 0 !important;
+        }
+
+        /* Keep hover effect disabled on the parent when expanded */
+        .task-item.is-parent:hover {
+            transform: none;
+            box-shadow: var(--shadow);
+            border-color: var(--border);
+        }
+
+        /* New styles for the Pomodoro focus screen layout */
+        #pomodoro-focus-overlay {
+            flex-direction: row;
+            justify-content: flex-start;
+            align-items: stretch;
+            padding: 0;
+        }
+
+        #focus-task-sidebar {
+            width: 320px;
+            background-color: var(--bg-secondary);
+            padding: 2rem;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            border-right: 1px solid var(--border);
+            flex-shrink: 0;
+        }
+
+        #focus-center-content {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 2rem;
+        }
+
+        .focus-task-list {
+            flex-grow: 1;
+            height: auto;
+            max-height: none;
+            overflow-y: auto;
+        }
+        
+        /* Hides the scrollbar while keeping it functional */
+        .focus-task-list::-webkit-scrollbar {
+            display: none;
+        }
+        .focus-task-list {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+
+        body.dark-theme .input:focus, body.dark-theme .select:focus { box-shadow: 0 0 0 3px rgba(188, 160, 220, 0.2); }
+
+        .label { display: block; font-size: 0.9rem; font-weight: 700; margin-bottom: 0.5rem; color: var(--text-secondary); }
+        
+        .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+        .form-group { margin-bottom: 1rem; }
+
+        .slider-container { position: relative; width: 100%; height: 0.5rem; display: flex; align-items: center; background: var(--border); border-radius: 0.25rem; }
+        .slider-fill { position: absolute; top: 0; left: 0; height: 100%; background: var(--accent-primary); border-radius: 0.25rem; pointer-events: none; }
+        .slider { -webkit-appearance: none; appearance: none; width: 100%; height: 1rem; background: transparent; outline: none; margin: 0; position: relative; }
+        .slider::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 1rem; height: 1rem; border-radius: 50%; background: var(--accent-primary); cursor: pointer; }
+        .slider::-moz-range-thumb { width: 1rem; height: 1rem; border-radius: 50%; background: var(--accent-primary); cursor: pointer; border: none; }
+
+        .pomodoro-display { font-family: monospace; font-size: 2.5rem; text-align: center; font-weight: 700; color: var(--text-primary); }
+        .pomodoro-controls { display: grid; grid-template-columns: 1fr 1fr  auto; gap: 0.5rem; margin-top: 1rem; }
+        .popover { position: relative; display: inline-block; }
+        .popover-content { display: none; position: absolute; top: 100%; right: 0; z-index: 10; width: 18rem; padding: 1.5rem; background: var(--bg-primary); border: 1px solid var(--border); border-radius: 8px; box-shadow: var(--shadow); margin-top: 0.5rem; }
+        .popover-content.active { display: block; }
+        
+        .task-group-header { font-size: 1rem; font-weight: 700; color: var(--text-muted); padding-bottom: 0.5rem; border-bottom: 1px solid var(--border); margin-bottom: 1rem; margin-top: 1.5rem; }
+        .task-meta { display: flex; align-items: center; gap: 1rem; font-size: 0.8rem; color: var(--text-muted); margin-top: 0.25rem; flex-wrap: wrap; }
+        .badge { display: inline-flex; align-items: center; padding: 0.25rem 0.6rem; border-radius: 9999px; font-size: 0.75rem; font-weight: 700; background: var(--border); color: var(--text-secondary); }
+        
+        .calendar-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
+        .calendar-nav { display: flex; gap: 0.5rem; align-items: center; }
+        .calendar-month-year { font-size: 1.5rem; font-weight: 300; margin: 0 1rem; width: 180px; text-align: center; }
+        .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+        .calendar-day-header { text-align: center; font-weight: 700; padding: 0.5rem; font-size: 0.8rem; color: var(--text-muted); }
+        .calendar-day { min-height: 120px; padding: 0.5rem; border: 1px solid var(--border); border-radius: 6px; background: var(--bg-primary); cursor: pointer; transition: all 0.2s; position: relative; font-size: 0.8rem; }
+        .calendar-day:hover { background: var(--bg-secondary); }
+        .calendar-day-number { font-weight: 700; margin-bottom: 0.25rem; }
+        .calendar-day.today .calendar-day-number { background: var(--accent-primary); color: white; border-radius: 50%; width: 1.5rem; height: 1.5rem; display: flex; align-items: center; justify-content: center; }
+        .calendar-day.other-month { opacity: 0.4; background: var(--bg-secondary); }
+        .calendar-task { background: var(--accent-primary); color: white; padding: 2px 5px; border-radius: 4px; margin-bottom: 2px; font-size: 0.7rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        body.dark-theme .calendar-task { color: var(--bg-primary); }
+        .calendar-task.completed { background: var(--success); }
+        
+        .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.6); display: none; align-items: center; justify-content: center; z-index: 1000; }
+        .modal-overlay.active { display: flex; }
+        .modal-content { background: var(--bg-primary); border-radius: 8px; padding: 2rem; width: 95%; max-width: 1000px; height: 85vh; display: flex; flex-direction: column; }
+        .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; }
+        .modal-title { font-size: 1.8rem; font-weight: 300; }
+        .day-view-timeline { display: flex; flex-direction: row; width: 100%; flex: 1; overflow: hidden; border-top: 1px solid var(--border); padding-top: 1rem; }
+        .day-view-scroll-wrapper { position: relative; display: flex; flex-direction: row; flex: 1; overflow-y: auto; scrollbar-width: thin; }
+        .day-view-hours { width: 60px; text-align: right; flex-shrink: 0; position: sticky; top: 0; align-self: flex-start; background: var(--bg-primary); z-index: 10; }
+        .day-view-tasks { flex: 1; position: relative; border-left: 1px solid var(--border); overflow-x: auto; }
+        .untimed-section { width: 250px; margin-left: 1rem; flex-shrink: 0; overflow-y: auto; }
+
+        .calendar-task-item { position: absolute; background: var(--accent-primary); color: white; border-radius: 6px; padding: 4px 6px; font-size: 0.8rem; overflow: hidden; cursor: pointer; border: 1px solid rgba(255,255,255,0.2); transition: all 0.2s; }
+        body.dark-theme .calendar-task-item { color: var(--bg-primary); }
+        .calendar-task-item:hover { transform: scale(1.02); box-shadow: 0 2px 8px rgba(0,0,0,0.3); }
+        .calendar-task-item.completed { background-color: var(--success); text-decoration: line-through; opacity: 0.8; }
+        
+        .untimed-task { padding: 6px 10px; border-radius: 6px; background: var(--accent-primary); color: white; margin-bottom: 6px; font-size: 0.8rem; cursor: pointer; }
+        body.dark-theme .untimed-task { color: var(--bg-primary); }
+        .untimed-task.completed { background: var(--success); opacity: 0.7; }
+
+        .timed-event-item { padding: 6px 10px; border-radius: 6px; background: var(--success); color: white; font-size: 0.8rem; }
+        .untimed-event-item { padding: 6px 10px; border-radius: 6px; background: var(--accent-primary); color: white; margin-bottom: 6px; font-size: 0.8rem; }
+        body.dark-theme .untimed-event-item { color: #212121; }
+        
+        .type-toggle { display: flex; gap: 1rem; background: var(--bg-secondary); border-radius: 6px; padding: 0.25rem; }
+        .type-toggle label { flex: 1; text-align: center; padding: 0.5rem; border-radius: 6px; cursor: pointer; transition: all 0.2s; }
+        .type-toggle input:checked + span { font-weight: 700; }
+        .type-toggle label.active { background: var(--bg-primary); box-shadow: var(--shadow); }
+        
+        .sidebar-actions { display: flex; gap: 0.75rem; align-items: center; margin-top: 1rem; }
+        #theme-toggle { padding: 0.5rem; flex-shrink: 0; }
+        .theme-icon { width: 1.5rem; height: 1.5rem; stroke: currentColor; fill: currentColor; transition: transform 0.5s ease; }
+        .theme-icon .sun-rays, .theme-icon .sun { transition: transform 0.5s ease, opacity 0.3s ease; }
+        .theme-icon .moon { transform: translateX(100%); transition: transform 0.5s ease; }
+        body.dark-theme .theme-icon { transform: rotate(180deg); }
+        body.dark-theme .theme-icon .sun { transform: scale(0.6); opacity: 0; }
+        body.dark-theme .theme-icon .sun-rays { transform: rotate(45deg); opacity: 0; }
+        body.dark-theme .theme-icon .moon { transform: translateX(0); }
+        
+        input[type="time"]::-webkit-calendar-picker-indicator { cursor: pointer; background-color: var(--bg-secondary); padding: 0.3rem; border-radius: 4px; transition: background-color 0.2s; border: 1px solid var(--border); }
+        input[type="time"]::-webkit-calendar-picker-indicator:hover { background-color: var(--accent-primary); }
+        
+        #tasks-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); gap: 1.5rem; align-items: start; }
+        
+        @media (max-width: 768px) {
+            .app-layout { flex-direction: column; }
+            .sidebar { width: 100%; height: auto; position: relative; }
+            .main-content { margin-left: 0; padding: 1.5rem; }
+            .day-view-modal-content { width: 98%; height: 90vh; padding: 1rem; }
+            .day-view-timeline { flex-direction: column; }
+            .day-view-scroll-wrapper { flex-direction: column; }
+            .untimed-section { width: 100%; margin-left: 0; margin-top: 1rem; }
+        }
+
+        body.modal-open { overflow: hidden; }
+
+        /* Pomodoro Focus Mode Styles */
+        #pomodoro-focus-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: var(--bg-primary);
+            z-index: 2000;
+            display: none;
+            opacity: 0;
+            transition: opacity 0.5s ease;
+            /* New layout styles */
+            flex-direction: row;
+            justify-content: flex-start;
+            align-items: stretch;
+            padding: 0;
+        }
+
+        #pomodoro-focus-overlay.active {
+            display: flex;
+            opacity: 1;
+        }
+
+        #focus-task-sidebar {
+            width: 320px;
+            background-color: var(--bg-secondary);
+            padding: 2rem;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            border-right: 1px solid var(--border);
+            flex-shrink: 0;
+        }
+
+        #focus-center-content {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 2rem;
+        }
+
+        .focus-timer-display {
+            font-size: 8rem;
+            font-family: monospace;
+        }
+
+        .focus-task-title {
+            font-size: 1.5rem;
+            color: var(--text-secondary);
+            margin-top: 1rem;
+            text-align: center;
+        }
+
+        .focus-task-list {
+            flex-grow: 1;
+            height: auto;
+            max-height: none;
+            overflow-y: auto;
+            margin-top: 1rem;
+        }
+        
+        /* Hides the scrollbar while keeping it functional */
+        .focus-task-list::-webkit-scrollbar {
+            display: none;
+        }
+
+        .focus-task-list {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+
+        .focus-task-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.75rem;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            margin-bottom: 0.5rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .focus-task-item:hover {
+            background-color: var(--bg-primary);
+        }
+
+        .focus-task-item.selected {
+            border-color: var(--accent-primary);
+            background-color: var(--bg-primary);
+            font-weight: 700;
+        }
+
+        .focus-task-item .badge {
+            flex-shrink: 0;
+            margin-left: 1rem;
+        }
+
+
+    </style>
+</head>
+<body>
+
+    <div class="app-layout">
+        <aside class="sidebar">
+            <div class="sidebar-header">GTM</div>
+            <nav class="sidebar-nav">
+                <ul id="main-nav">
+                    <li><a onclick="showMainView('dashboard-view')" class="active">Dashboard</a></li>
+                    <li><a onclick="showMainView('tasks-view')">Tasks</a></li>
+                    <li><a onclick="showMainView('arena-view')">Arena & Shop</a></li>
+                    <li><a onclick="showMainView('calendar-view')">Calendar</a></li>
+                </ul>
+            </nav>
+
+            <div class="sidebar-footer">
+                <p><strong>Hero Status</strong></p>
+                <div class="sidebar-footer-stats">
+                    <span id="sidebar-player-level">Level 1</span>
+                    <span id="sidebar-player-gold">0 Gold</span>
+                </div>
+
+                <div class="sidebar-actions">
+                    <button id="theme-toggle" class="btn btn-ghost" title="Toggle theme">
+                        <svg class="theme-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                            <defs>
+                                <mask id="moon-mask">
+                                    <rect x="0" y="0" width="100%" height="100%" fill="white"/>
+                                    <circle cx="16" cy="8" r="8" fill="black"/>
+                                </mask>
+                            </defs>
+                            <circle class="sun" cx="12" cy="12" r="8" fill="currentColor"/>
+                            <g class="sun-rays" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                                <line x1="12" y1="1" x2="12" y2="3"/>
+                                <line x1="12" y1="21" x2="12" y2="23"/>
+                                <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
+                                <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+                                <line x1="1" y1="12" x2="3" y2="12"/>
+                                <line x1="21" y1="12" x2="23" y2="12"/>
+                                <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
+                                <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+                            </g>
+                            <circle class="moon" cx="12" cy="12" r="8" fill="currentColor" mask="url(#moon-mask)"/>
+                        </svg>
+                    </button>
+                    <button id="sidebar-auth-button" class="btn btn-secondary" style="visibility: hidden; flex-grow: 1;">Sign in with Google</button>
+                </div>
+            </div>
+        </aside>
+
+        <main class="main-content">
+            <div id="dashboard-view" class="main-view active">
+                <header class="header">
+                    <h1>Dashboard</h1>
+                    <button class="btn btn-secondary" onclick="manualSync()" title="Sync with Google">
+                        <svg class="icon" viewBox="0 0 24 24"><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M3 21v-5h5"/><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/></svg>
+                        Sync
+                    </button>
+                </header>
+
+                <section class="stats-grid">
+                    <div class="card">
+                        <h3 class="card-title">Hero</h3>
+                        <p class="card-description">Level <span id="player-level">1</span></p>
+                        <div class="label">XP to next level</div>
+                        <div class="progress-bar" style="margin-bottom: 1rem;">
+                            <div class="progress-fill" id="xp-progress"></div>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <span>Damage: <strong id="total-damage">5</strong></span>
+                            <span>Gold: <strong id="player-gold">0</strong></span>
+                        </div>
+                    </div>
+                    <div class="card">
+                        <h3 class="card-title">Today's Progress</h3>
+                        <p class="card-description">
+                            <span id="completed-count">0</span> / <span id="total-count">0</span> tasks completed
+                        </p>
+                         <div class="label">Daily Completion</div>
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="completion-progress"></div>
+                        </div>
+                    </div>
+                     <div class="card">
+                        <h3 class="card-title">Pomodoro</h3>
+                        <p class="card-description" id="pomodoro-mode">focus</p>
+                        <div class="pomodoro-display" id="pomodoro-display">25:00</div>
+                        <div class="pomodoro-controls">
+                            <button class="btn btn-primary" onclick="togglePomodoro()" id="pomodoro-btn">Start</button>
+                            <button class="btn btn-secondary" onclick="resetPomodoro()">Reset</button>
+                            <div class="popover">
+                                <button class="btn btn-ghost" onclick="togglePomodoroSettings()">
+                                   <svg class="icon" viewBox="0 0 24 24"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
+                                </button>
+                                <div class="popover-content" id="pomodoro-settings">
+                                    <div class="form-group"><label class="label">Focus: <span id="focus-value">25</span>m</label><div class="slider-container"><div class="slider-fill" id="focus-fill"></div><input type="range" class="slider" min="10" max="60" step="5" value="25" id="focus-slider"></div></div>
+                                    <div class="form-group"><label class="label">Short Break: <span id="short-break-value">5</span>m</label><div class="slider-container"><div class="slider-fill" id="short-break-fill"></div><input type="range" class="slider" min="3" max="15" step="1" value="5" id="short-break-slider"></div></div>
+                                    <div class="form-group"><label class="label">Long Break: <span id="long-break-value">15</span>m</label><div class="slider-container"><div class="slider-fill" id="long-break-fill"></div><input type="range" class="slider" min="10" max="45" step="5" value="15" id="long-break-slider"></div></div>
+                                    <div class="form-group"><label class="label">Sessions: <span id="sessions-value">4</span></label><div class="slider-container"><div class="slider-fill" id="sessions-fill"></div><input type="range" class="slider" min="2" max="8" step="1" value="4" id="sessions-slider"></div></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="new-quest-section" style="margin-bottom: 2rem;">
+                    <div class="card">
+                         <h3 class="card-title">New Item</h3>
+                         <p class="card-description">Add quests for XP, or schedule events on your calendar.</p>
+                         <form onsubmit="addTask(event)">
+                            <div class="form-group">
+                                <label class="label">Type</label>
+                                <div class="type-toggle">
+                                    <label id="type-label-task" class="active"><input type="radio" name="task-type" value="task" checked onchange="toggleFormFields(this.value)" style="display:none;"><span>Quest</span></label>
+                                    <label id="type-label-event"><input type="radio" name="task-type" value="event" onchange="toggleFormFields(this.value)" style="display:none;"><span>Event</span></label>
+                                </div>
+                            </div>
+                            <div class="form-group"><input type="text" class="input" id="task-title" placeholder="e.g., Revise calculus notes" required></div>
+                            <div class="form-group" id="category-form-group"><label class="label">Category</label><select class="select" id="task-category"></select></div>
+                            <div id="quest-fields-container">
+                                <div class="form-group"><label class="label">Frequency</label><select class="select" id="task-frequency"><option value="once">Once</option><option value="daily">Daily</option><option value="weekly">Weekly</option></select></div>
+                                <div class="form-group" id="quest-fields-difficulty"><label class="label">Difficulty: <span id="difficulty-value">3</span></label><div class="slider-container"><div class="slider-fill" id="difficulty-fill"></div><input type="range" class="slider" min="1" max="5" step="1" value="3" id="difficulty-slider"></div></div>
+                                <div class="form-group" id="quest-fields-repeating" style="display: none;"><label class="label">Repeat on</label><div style="display:flex; gap:0.5rem; flex-wrap:wrap;"><label><input type="checkbox" name="repeating-day" value="0"> S</label><label><input type="checkbox" name="repeating-day" value="1"> M</label><label><input type="checkbox" name="repeating-day" value="2"> T</label><label><input type="checkbox" name="repeating-day" value="3"> W</label><label><input type="checkbox" name="repeating-day" value="4"> T</label><label><input type="checkbox" name="repeating-day" value="5"> F</label><label><input type="checkbox" name="repeating-day" value="6"> S</label></div></div>
+                            </div>
+                             <div class="form-group">
+                                 <div id="date-button-container">
+                                     <button type="button" class="btn btn-secondary" onclick="showDateInputs()">Set Dates</button>
+                                 </div>
+                                 <div id="date-inputs-container" style="display: none;">
+                                     <div class="form-grid">
+                                        <div><label class="label">Start Date</label><input type="date" class="input" id="task-start-date"></div>
+                                        <div><label class="label">End Date</label><input type="date" class="input" id="task-due-date"></div>
+                                     </div>
+                                     <button type="button" class="btn btn-ghost" onclick="hideDateInputs()">Clear Dates</button>
+                                 </div>
+                             </div>
+                             <div class="form-group">
+                                 <div id="time-button-container">
+                                     <button type="button" class="btn btn-secondary" onclick="showTimeInputs()">Set Time</button>
+                                 </div>
+                                 <div id="time-inputs-container" style="display: none;">
+                                     <div class="form-grid">
+                                        <div><label class="label">Start Time</label><input type="time" class="input" id="task-start-time"></div>
+                                        <div><label class="label">End Time</label><input type="time" class="input" id="task-end-time"></div>
+                                     </div>
+                                     <button type="button" class="btn btn-ghost" onclick="hideTimeInputs()">Clear Time</button>
+                                 </div>
+                             </div>
+                             <button type="submit" class="btn btn-primary" style="width: 100%;">Add Item</button>
+                         </form>
+                    </div>
+                </section>
+
+                <section class="calendar-section" style="margin-bottom: 2rem;">
+                    <div class="card">
+                        <div class="calendar-header">
+                            <div class="calendar-month-year" id="dashboard-calendar-month-year"></div>
+                            <div class="calendar-nav">
+                                <button class="btn btn-secondary" onclick="changeMonth(-1)">&lt;</button>
+                                <button class="btn btn-secondary" onclick="changeMonth(1)">&gt;</button>
+                            </div>
+                        </div>
+                        <div class="calendar-grid-header" style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px;">
+                             <div class="calendar-day-header">Sun</div> <div class="calendar-day-header">Mon</div>
+                             <div class="calendar-day-header">Tue</div> <div class="calendar-day-header">Wed</div>
+                             <div class="calendar-day-header">Thu</div> <div class="calendar-day-header">Fri</div>
+                             <div class="calendar-day-header">Sat</div>
+                        </div>
+                        <div class="calendar-grid" id="dashboard-calendar-grid"></div>
+                    </div>
+                </section>
+
+
+                <section class="tasks-section">
+                    <div id="tasks-list">
+                        </div>
+                </section>
+            </div>
+
+            <div id="tasks-view" class="main-view">
+                <header class="header">
+                    <h2>Tasks by Day</h2>
+                </header>
+                <div class="card" style="margin-bottom: 2rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+                    <button id="prev-day-btn" class="btn btn-secondary">&lt; Prev Day</button>
+                    <input type="date" id="date-picker" class="input" style="max-width: 200px; flex-grow: 1;">
+                    <button id="next-day-btn" class="btn btn-secondary">Next Day &gt;</button>
+                </div>
+                <div id="day-wise-tasks-list">
+                    </div>
+            </div>
+
+            <div id="arena-view" class="main-view">
+                <header class="header"><h1>Arena & Shop</h1></header>
+
+                <section class="player-stats-display card" style="margin-bottom: 2rem;">
+                    <div style="display: flex; justify-content: space-around; flex-wrap: wrap; gap: 1.5rem; text-align: center;">
+                        <div><span class="label">Health</span><strong id="arena-view-health"></strong></div>
+                        <div><span class="label">Damage</span><strong id="arena-view-damage"></strong></div>
+                        <div><span class="label">Armour</span><strong id="arena-view-armour"></strong></div>
+                        <div><span class="label">Level</span><strong id="arena-view-level"></strong></div>
+                        <div><span class="label">Gold</span><strong id="arena-view-gold"></strong></div>
+                    </div>
+                </section>
+                
+                <div class="card" style="margin-bottom: 2rem;">
+                    <h3 class="card-title" id="enemy-name">Goblin of Distraction</h3>
+                    <p class="card-description">Complete tasks from the Dashboard to attack.</p>
+                    <div class="label">Enemy HP (<span id="enemy-hp"></span> / <span id="enemy-max-hp"></span>)</div>
+                    <div class="progress-bar" style="margin-bottom: 1rem;">
+                        <div class="progress-fill" id="enemy-progress" style="background-color: var(--danger);"></div>
+                    </div>
+                    <div class="badge">Lv<span id="enemy-level"></span></div>
+                </div>
+
+                <div class="card" style="margin-bottom: 2rem;">
+                    <h3 class="card-title">Your Status</h3>
+                    <p class="card-description">This is your current health in combat.</p>
+                    
+                    <div class="label">Player HP (<span id="player-hp-arena"></span> / <span id="player-max-hp-arena"></span>)</div>
+                    <div class="progress-bar" style="margin-bottom: 1rem;">
+                        <div class="progress-fill" id="player-progress-arena" style="background-color: var(--success);"></div>
+                    </div>
+
+                    <div class="label" style="margin-top: 1rem;">Player Armour (<span id="player-armour-arena"></span>)</div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="player-armour-progress-arena" style="background-color: var(--accent-primary);"></div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h3 class="card-title">Shop</h3>
+                    <p class="card-description">Invest gold earned from quests. Your Gold: <strong id="shop-gold">0</strong></p>
+                    <div class="stats-grid" id="upgrades-list"></div>
+                </div>
+            </div>
+
+            <div id="calendar-view" class="main-view">
+                <header class="header">
+                    <h1>Calendar</h1>
+                    <button id="calendar-auth-button" class="btn btn-secondary" style="visibility: hidden;">Sign in with Google</button>
+                </header>
+                <div class="card">
+                     <p class="card-description" id="calendar-description">Plan and schedule your quests.</p>
+                    <div class="calendar-header">
+                        <div style="display: flex; align-items: center; gap: 1rem;">
+                            <button class="btn btn-secondary" onclick="goToToday()">Today</button>
+                            <div class="calendar-month-year" id="calendar-month-year"></div>
+                        </div>
+                        <div class="calendar-nav">
+                            <button class="btn btn-secondary" onclick="changeMonth(-1)">&lt;</button>
+                            <button class="btn btn-secondary" onclick="changeMonth(1)">&gt;</button>
+                        </div>
+                    </div>
+                    <div class="calendar-grid-header" style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px;">
+                         <div class="calendar-day-header">Sun</div> <div class="calendar-day-header">Mon</div>
+                         <div class="calendar-day-header">Tue</div> <div class="calendar-day-header">Wed</div>
+                         <div class="calendar-day-header">Thu</div> <div class="calendar-day-header">Fri</div>
+                         <div class="calendar-day-header">Sat</div>
+                    </div>
+                    <div class="calendar-grid" id="calendar-grid"></div>
+                </div>
+            </div>
+
+        </main>
+    </div>
+
+    <div id="day-view-overlay" class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="day-view-title" class="modal-title">Day View</h3>
+                <button class="btn btn-ghost" onclick="closeDayView()">✕</button>
+            </div>
+            <div class="day-view-timeline">
+                <div class="day-view-scroll-wrapper">
+                    <div class="day-view-hours" id="day-view-hours"></div>
+                    <div class="day-view-tasks" id="day-view-tasks"></div>
+                </div>
+                <div class="untimed-section" style="display: flex; flex-direction: column;">
+                    <div id="untimed-quests-wrapper" class="untimed-quest-wrapper" onclick="createUntimedTaskFromView(event)" style="cursor: pointer; border-bottom: 1px solid var(--border); margin-bottom: 1rem; padding-bottom: 1rem;">
+                        <h4 style="font-size:0.9rem; margin-bottom:8px; color:var(--text-muted);">Untimed Quests ⊕</h4>
+                        <div id="untimed-list"></div>
+                    </div>
+
+                    <div id="untimed-events-wrapper" class="untimed-event-wrapper" onclick="createUntimedEventFromView(event)" style="cursor: pointer; border-bottom: 1px solid var(--border); margin-bottom: 1rem; padding-bottom: 1rem;">
+                        <h4 style="font-size:0.9rem; margin-bottom:8px; color:var(--text-muted);">Untimed Events ⊕</h4>
+                        <div id="untimed-events-list"></div>
+                    </div>
+
+                    <div id="allday-events-wrapper" style="margin-top: 1rem; flex-shrink: 0; display: none;">
+                        <h4 style="font-size:0.9rem; margin-bottom:8px; color:var(--text-muted);">All-Day Events (Google)</h4>
+                        <div id="allday-events-list"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="pomodoro-focus-overlay" class="modal-overlay">
+        <div id="focus-task-sidebar">
+            <h3 class="card-title">Select Quests to Focus On</h3>
+            <div class="focus-task-list" id="focus-task-list">
+                </div>
+        </div>
+
+        <div id="focus-center-content">
+            <div id="focus-timer-area">
+                <div class="focus-timer-display" id="focus-mode-timer-display">25:00</div>
+                <h2 class="focus-task-title" id="focus-task-title">Ready?</h2>
+            </div>
+            
+            <div id="focus-break-container" style="display: none; text-align: center;">
+                 <h3 style="font-size: 1.5rem;">Time for a break!</h3>
+                 <p class="card-description">Relax and recharge for the next session.</p>
+            </div>
+
+            <div id="focus-session-controls" style="margin-top: 3rem; text-align: center; flex-direction: column; gap: 1rem; align-items: center; display: flex;">
+                <div id="focus-setup-buttons">
+                     <button class="btn btn-primary" id="focus-mode-start-btn" onclick="startSessionFromOverlay()">Begin Focus Session</button>
+                     <button class="btn btn-secondary" onclick="exitFocusMode()">Cancel</button>
+                </div>
+                <div id="focus-running-buttons" style="display: none; align-items: center; flex-direction: column; width: 100%;">
+                    <div id="focus-session-task-display" style="margin-bottom: 1rem; font-size: 1.1rem; color: var(--text-secondary); width: 100%; max-width: 400px;"></div>
+                    <div style="display: flex; gap: 1rem; margin-top: 1rem;">
+                        <button class="btn btn-primary" onclick="completeAndEndSession()">Complete & End</button>
+                        <button class="btn btn-secondary" id="skip-button" onclick="skipToBreak()">Skip to Break</button>
+                        <button class="btn btn-danger" onclick="exitFocusMode(true)">End Session</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="task-creation-modal" class="modal-overlay">
+        <div class="modal-content" style="max-width: 600px; height: auto; max-height: 90vh;">
+            <div class="modal-header">
+                <h3 id="task-modal-title" class="modal-title">Add New Quest</h3>
+                <button class="btn btn-ghost" onclick="closeTaskCreationModal()">✕</button>
+            </div>
+            <form id="modal-task-form" onsubmit="handleModalTaskSubmit(event)">
+                <input type="hidden" id="modal-task-date">
+
+                <div class="form-group">
+                    <label class="label" for="modal-task-title-input">Title</label>
+                    <input type="text" id="modal-task-title-input" class="input" required autocomplete="off">
+                </div>
+
+                <div id="modal-time-display" style="display: none;">
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label class="label">Start Time</label>
+                            <input type="time" id="modal-display-startTime" class="input">
+                        </div>
+                        <div class="form-group">
+                            <label class="label">End Time</label>
+                            <input type="time" id="modal-display-endTime" class="input">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label class="label" for="modal-task-category">Category</label>
+                        <select id="modal-task-category" class="select"></select>
+                    </div>
+                    <div class="form-group" id="modal-difficulty-container">
+                        <label class="label">Difficulty: <span id="modal-difficulty-value">3</span></label>
+                        <div class="slider-container">
+                            <div class="slider-fill" id="modal-difficulty-fill" style="width: 50%;"></div>
+                            <input type="range" class="slider" min="1" max="5" step="1" value="3" id="modal-difficulty-slider">
+                        </div>
+                    </div>
+                </div>
+
+                <div style="display: flex; gap: 0.5rem; justify-content: flex-end; margin-top: 1.5rem;">
+                    <button type="button" class="btn btn-secondary" onclick="closeTaskCreationModal()">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Add Quest</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="task-edit-modal" class="modal-overlay">
+        <div class="modal-content" style="max-width: 600px; height: auto; max-height: 90vh;">
+            <div class="modal-header">
+                <h3 class="modal-title">Edit Quest</h3>
+                <button class="btn btn-ghost" onclick="closeTaskEditModal()">✕</button>
+            </div>
+            <form id="edit-task-form" onsubmit="handleTaskUpdate(event)">
+                <input type="hidden" id="edit-task-id">
+                
+                <div class="form-group">
+                    <label class="label" for="edit-task-title">Title</label>
+                    <input type="text" id="edit-task-title" class="input" required>
+                </div>
+
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label class="label" for="edit-task-category">Category</label>
+                        <select id="edit-task-category" class="select"></select>
+                    </div>
+                    <div class="form-group" id="edit-difficulty-wrapper">
+                        <label class="label">Difficulty: <span id="edit-difficulty-value">3</span></label>
+                        <div class="slider-container">
+                            <div class="slider-fill" id="edit-difficulty-fill"></div>
+                            <input type="range" class="slider" min="1" max="5" step="1" value="3" id="edit-difficulty-slider">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label class="label" for="edit-task-start-date">Start Date</label>
+                        <input type="date" class="input" id="edit-task-start-date">
+                    </div>
+                    <div class="form-group">
+                        <label class="label" for="edit-task-end-date">End Date</label>
+                        <input type="date" class="input" id="edit-task-end-date">
+                    </div>
+                    <div class="form-group">
+                        <label class="label" for="edit-task-start-time">Start Time</label>
+                        <input type="time" class="input" id="edit-task-start-time">
+                    </div>
+                    <div class="form-group">
+                        <label class="label" for="edit-task-end-time">End Time</label>
+                        <input type="time" class="input" id="edit-task-end-time">
+                    </div>
+                </div>
+
+                <div class="modal-footer" style="display: flex; justify-content: space-between; align-items: center; margin-top: 1.5rem; border-top: 1px solid var(--border); padding-top: 1rem;">
+                    <div>
+                        <button type="button" class="btn btn-secondary" id="modal-complete-btn" onclick="toggleCompleteFromModal()">Complete</button>
+                        <button type="button" id="modal-delete-btn" class="btn btn-ghost" style="color: var(--danger);" onclick="initiateDelete(this)">Delete</button>
+                    </div>
+                    <div>
+                        <button type="button" class="btn btn-secondary" onclick="closeTaskEditModal()">Cancel</button>
+                        <button type="submit" class="btn btn-primary">Save Changes</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+
+    <script>
+        // --- SCRIPT FROM TASKSAPP, ADAPTED FOR NEW UI ---
+        
+        let gameData = {
+            tasks: [],
+            calendar: { currentMonth: new Date().getMonth(), currentYear: new Date().getFullYear() },
+            player: {
+                level: 1, xp: 0, gold: 0, baseDamage: 5, maxHealth: 100, health: 100, armour: 0,
+                upgrades: [
+                    { name: "Sharpened Blade",  type: 'damage',      level: 0, cost: 30, bonus: 2 },
+                    { name: "Arcane Focus",    type: 'healthRegen', level: 0, cost: 60, bonus: 5 },
+                    { name: "Champion's Might",  type: 'armour',      level: 0, cost: 120, bonus: 1 }
+                ]
+            },
+            enemy: { name: "Slime of Laziness", level: 1, maxHp: 85, hp: 85, rewardXp: 70, rewardGold: 30 },
+            theme: "light",
+            lastOpenISO: new Date().toISOString(),
+            pomodoro: {
+                lastSelectedTaskIds: [],
+                mode: "focus", secondsLeft: 25 * 60, running: false, activeTaskIds: [], focusMinutes: 25,
+                shortBreakMinutes: 5, longBreakMinutes: 15, sessionsUntilLongBreak: 4, currentSession: 1
+            },
+            dayView: { hourPixels: 60 },
+            gcalEvents: [], gcalTasks: [],
+        };
+        const ARMOUR_BAR_MAX = 50;
+        const trashIconSvg = `<svg class="icon-delete" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>`;
+        const STORAGE_KEY = "gamified-habits-v5-final";
+        let pomodoroInterval = null;
+        const taskCategories = ["Study", "Fitness", "Coding", "Chores", "Wellness", "Other"];
+        const eventCategories = ["Class", "Meeting", "Appointment", "Personal", "Other"];
+        const nowLocalISO = () => new Date().toISOString();
+        const isSameLocalDay = (isoA, isoB) => {
+            if (!isoA || !isoB) return false;
+            const a = new Date(isoA); const b = new Date(isoB);
+            return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+        };
+        const levelThreshold = (level) => Math.floor((level ** 2) * 100);
+        const seedEnemy = (lvl) => {
+            const maxHp = 60 + lvl * 25;
+            const names = ["Slime of Laziness", "Goblin of Distraction", "Specter of Doomscroll"];
+            return { name: lvl % 5 === 0 ? "Boss of Procrastination" : names[lvl % 3], level: lvl, maxHp, hp: maxHp, rewardXp: 50 + lvl * 20, rewardGold: 20 + lvl * 10 };
+        };
+        const toDateStr = (d) => d.toISOString().slice(0, 10);
+        const todayDateStr = () => toDateStr(new Date());
+
+        let tokenClient;
+        let gapiInited = false;
+        let gisInited = false;
+        const API_KEY = CONFIG.API_KEY; 
+        const CLIENT_ID = CONFIG.CLIENT_ID;
+        const DISCOVERY_DOCS = ['https://www.googleapis.com/discovery/v1/apis/tasks/v1/rest', 'https://www.googleapis.com/discovery/v1/apis/calendar/v3/rest'];
+        const SCOPES = 'https://www.googleapis.com/auth/tasks https://www.googleapis.com/auth/calendar.events';
+        
+        function gapiLoaded() { gapi.load('client', initializeGapiClient); }
+        async function initializeGapiClient() {
+            if (!API_KEY || API_KEY.includes('YOUR_API_KEY')) return console.warn("Google API Key not set.");
+            try {
+                await gapi.client.init({ apiKey: API_KEY, discoveryDocs: DISCOVERY_DOCS });
+                gapiInited = true; maybeEnableAuthButton();
+            } catch(e) { console.error("Error initializing GAPI client", e); }
+        }
+        function gisLoaded() {
+            if (!CLIENT_ID || CLIENT_ID.includes('YOUR_CLIENT_ID')) return console.warn("Google Client ID not set.");
+            try {
+                tokenClient = google.accounts.oauth2.initTokenClient({
+                    client_id: CLIENT_ID, scope: SCOPES,
+                    callback: (tokenResponse) => {
+                        if (tokenResponse.error) { throw tokenResponse; }
+                        updateSigninStatus(true); 
+                    },
+                });
+                gisInited = true; maybeEnableAuthButton();
+            } catch (e) { console.error("Error initializing Google Sign-In", e); }
+        }
+        function maybeEnableAuthButton() {
+            if (gapiInited && gisInited) {
+                const sidebarBtn = document.getElementById('sidebar-auth-button');
+                const calendarBtn = document.getElementById('calendar-auth-button');
+                
+                // Make both buttons clickable
+                sidebarBtn.onclick = handleAuthClick;
+                calendarBtn.onclick = handleAuthClick;
+
+                // The showMainView function will handle which one is visible
+                showMainView(document.querySelector('.main-view.active').id);
+            }
+        }
+        function handleAuthClick() {
+            if (gapi.client.getToken() === null) {
+                tokenClient.requestAccessToken({prompt: 'consent'});
+            } else {
+                tokenClient.requestAccessToken({prompt: ''});
+            }
+        }
+        function handleSignoutClick() {
+            const token = gapi.client.getToken();
+            if (token !== null) {
+                google.accounts.oauth2.revoke(token.access_token);
+                gapi.client.setToken('');
+                updateSigninStatus(false);
+            }
+        }
+
+        function updateSigninStatus(isSignedIn) {
+            const sidebarBtn = document.getElementById('sidebar-auth-button');
+            const calendarBtn = document.getElementById('calendar-auth-button');
+            const buttons = [sidebarBtn, calendarBtn];
+
+            buttons.forEach(btn => {
+                if (!btn) return;
+                if (isSignedIn) {
+                    btn.textContent = `Sign Out`;
+                    btn.onclick = handleSignoutClick;
+                } else {
+                    btn.textContent = `Sign in with Google`;
+                    btn.onclick = handleAuthClick;
+                }
+            });
+
+            if (isSignedIn) {
+                runSync();
+            } else {
+                gameData.gcalEvents = [];
+                gameData.gcalTasks = [];
+                // Remove synced tasks when signing out
+                gameData.tasks = gameData.tasks.filter(t => !t.googleEventId);
+                renderCalendar();
+            }
+        }
+
+        function manualSync() { handleAuthClick(); }
+
+        async function updateGoogleCalendarEvent(task) {
+            if (!task.googleEventId) return;
+            try {
+                const isAllDay = !task.startTime;
+                let start, end;
+                if (isAllDay) {
+                    const endDate = new Date(task.startDate + 'T12:00:00');
+                    endDate.setDate(endDate.getDate() + 1);
+                    start = { 'date': task.startDate };
+                    end = { 'date': toDateStr(endDate) };
+                } else {
+                    start = { 'dateTime': new Date(`${task.startDate}T${task.startTime}`).toISOString() };
+                    const endTime = task.endTime || `${parseInt(task.startTime.split(':')[0]) + 1}:${task.startTime.split(':')[1]}`;
+                    end = { 'dateTime': new Date(`${task.startDate}T${endTime}`).toISOString() };
+                }
+                const eventResource = {
+                    'summary': task.title,
+                    'start': start,
+                    'end': end,
+                    'colorId': task.completedToday ? '2' : null // Green if complete, default otherwise
+                };
+                const response = await gapi.client.calendar.events.update({
+                    'calendarId': 'primary',
+                    'eventId': task.googleEventId,
+                    'resource': eventResource
+                });
+                // Update local timestamp to match Google's, preventing sync loops
+                task.lastModified = response.result.updated;
+            } catch (error) { console.error("Error updating Google Calendar event:", error); }
+        }
+
+        async function runSync() {
+            if (gapi.client.getToken() === null) return;
+            alert('Syncing with Google...');
+            await synchronizeWithGoogleCalendar(); // Syncs Events
+            await synchronizeWithGoogleTasks();    // Syncs Quests
+            alert('Sync complete!');
+            updateUI(); // Refresh UI after all syncing is done
+        }
+
+        async function createGoogleCalendarEvent(task) {
+            try {
+                const isAllDay = !task.startTime;
+                let start, end;
+                if (isAllDay) {
+                    const endDate = new Date(task.startDate + 'T12:00:00');
+                    endDate.setDate(endDate.getDate() + 1);
+                    start = { 'date': task.startDate };
+                    end = { 'date': toDateStr(endDate) };
+                } else {
+                    start = { 'dateTime': new Date(`${task.startDate}T${task.startTime}`).toISOString() };
+                    const endHour = (parseInt(task.startTime.split(':')[0]) + 1) % 24;
+                    const endTime = task.endTime || `${String(endHour).padStart(2, '0')}:${task.startTime.split(':')[1]}`;
+                    end = { 'dateTime': new Date(`${task.startDate}T${endTime}`).toISOString() };
+                }
+                const event = {
+                    'summary': task.title, 'description': `Quest from QuestList`, 'start': start, 'end': end,
+                };
+                const response = await gapi.client.calendar.events.insert({
+                    'calendarId': 'primary', 'resource': event
+                });
+                return { id: response.result.id };
+            } catch (error) {
+                console.error("Error creating Google Calendar event:", error);
+                return null;
+            }
+        }
+
+        async function synchronizeWithGoogleCalendar() { // For Events
+            if (gapi.client.getToken() === null) return;
+            console.log("Syncing Google Calendar Events...");
+            
+            const response = await gapi.client.calendar.events.list({
+                'calendarId': 'primary', 'timeMin': new Date(new Date().setMonth(new Date().getMonth() - 1)).toISOString(),
+                'timeMax': new Date(new Date().setMonth(new Date().getMonth() + 2)).toISOString(),
+                'showDeleted': false, 'singleEvents': true, 'orderBy': 'startTime'
+            });
+
+            const googleEventsMap = new Map(response.result.items.map(event => [event.id, event]));
+            const googleEventIds = new Set(googleEventsMap.keys());
+
+            // ✨ NEW: Remove local events that were deleted on Google
+            gameData.tasks = gameData.tasks.filter(task => {
+                if (task.difficulty === 0 && task.googleCalendarEventId) {
+                    return googleEventIds.has(task.googleCalendarEventId);
+                }
+                return true; // Keep all other tasks (quests, etc.)
+            });
+
+            const localEvents = gameData.tasks.filter(t => t.difficulty === 0);
+
+            for (const item of localEvents) {
+                if (item.googleCalendarEventId) {
+                    const googleEvent = googleEventsMap.get(item.googleCalendarEventId);
+                    if (googleEvent) {
+                        item.completedToday = googleEvent.colorId === '2';
+                        googleEventsMap.delete(item.googleCalendarEventId);
+                    }
+                } else if (item.category !== 'GTask') {
+                    const newEventData = await createGoogleCalendarEvent(item);
+                    if (newEventData) item.googleCalendarEventId = newEventData.id;
+                }
+            }
+        }
+        
+        async function synchronizeWithGoogleTasks() { // For Quests
+            if (gapi.client.getToken() === null) return;
+            console.log("Syncing Google Tasks Quests...");
+
+            const response = await gapi.client.tasks.tasks.list({
+                'tasklist': '@default', 'showCompleted': true, 'showHidden': false
+            });
+
+            const googleTasksMap = new Map((response.result.items || []).map(task => [task.id, task]));
+            const googleTaskIds = new Set(googleTasksMap.keys());
+            
+            // ✨ NEW: Remove local quests/sub-tasks that were deleted on Google
+            gameData.tasks.forEach(task => {
+                if (task.subTasks && task.subTasks.length > 0) {
+                    // Filter sub-tasks inside projects
+                    task.subTasks = task.subTasks.filter(sub => 
+                        !sub.googleTaskId || googleTaskIds.has(sub.googleTaskId)
+                    );
+                }
+            });
+            // Filter standalone quests
+            gameData.tasks = gameData.tasks.filter(task => {
+                if (task.difficulty > 0 && !task.subTasks && task.googleTaskId) {
+                    return googleTaskIds.has(task.googleTaskId);
+                }
+                return true; // Keep all other tasks (events, projects, etc.)
+            });
+
+            const allLocalQuests = [];
+            gameData.tasks.forEach(task => {
+                if (task.difficulty > 0) {
+                    if (task.subTasks && task.subTasks.length > 0) {
+                        task.subTasks.forEach(sub => allLocalQuests.push(sub));
+                    } else {
+                        allLocalQuests.push(task);
+                    }
+                }
+            });
+
+            for (const item of allLocalQuests) {
+                if (item.googleTaskId) {
+                    const googleTask = googleTasksMap.get(item.googleTaskId);
+                    if (googleTask) {
+                        item.completedToday = googleTask.status === 'completed';
+                        googleTasksMap.delete(item.googleTaskId);
+                    }
+                } else {
+                    const newTaskId = await createGoogleTask(item);
+                    if (newTaskId) item.googleTaskId = newTaskId;
+                }
+            }
+        }
+
+        async function updateGoogleEventStatus(taskId, isComplete) {
+            const { task } = findTaskAndParent(taskId);
+            if (!task || !task.googleEventId) return; // Only works for tasks that are already linked
+            try {
+                await gapi.client.calendar.events.patch({
+                    calendarId: 'primary', eventId: task.googleEventId,
+                    resource: { colorId: isComplete ? '2' : null }
+                });
+            } catch (error) {
+                console.error("Failed to update Google Calendar event status:", error);
+                alert("Could not update Google Calendar. Your change is saved locally for now.");
+            }
+        }
+
+        async function fetchGoogleTasks() {
+            try {
+                const response = await gapi.client.tasks.tasks.list({ 'tasklist': '@default', 'showCompleted': true, 'showHidden': false });
+                const fetchedTasks = (response.result.items || []).filter(task => task.due).map(task => ({
+                    id: task.id, title: task.title, due: task.due, status: task.status
+                }));
+                const fetchedTaskIds = new Set(fetchedTasks.map(t => t.id));
+                fetchedTasks.forEach(gTask => {
+                    const existingTask = gameData.tasks.find(t => t.originGoogleId === gTask.id);
+                    const isCompletedInGoogle = gTask.status === 'completed';
+                    if (existingTask) {
+                        if (existingTask.completedToday && !isCompletedInGoogle) {
+                            updateGoogleTaskStatus(gTask.id, 'completed');
+                        } else {
+                           existingTask.completedToday = isCompletedInGoogle;
+                        }
+                    } else {
+                        gameData.tasks.push({
+                            id: crypto.randomUUID(), title: gTask.title, category: 'GTask', frequency: 'once', difficulty: 3, 
+                            completedToday: isCompletedInGoogle, streak: 0, lastCompletedISO: null, 
+                            startDate: toDateStr(new Date(gTask.due)), dueDate: toDateStr(new Date(gTask.due)), 
+                            startTime: null, endTime: null, repeatingDays: [], originGoogleId: gTask.id
+                        });
+                    }
+                });
+                gameData.tasks = gameData.tasks.filter(t => t.category !== 'GTask' || !t.originGoogleId || fetchedTaskIds.has(t.originGoogleId));
+                updateUI(); saveGame();
+            } catch (error) { console.error('Error fetching Google Tasks:', error); }
+        }
+
+        const saveGame = () => { localStorage.setItem(STORAGE_KEY, JSON.stringify(gameData)); };
+        const loadGame = () => {
+            const savedData = localStorage.getItem(STORAGE_KEY);
+            if (savedData) {
+                const parsed = JSON.parse(savedData);
+                Object.assign(gameData, parsed, { gcalEvents: [], gcalTasks: [] });
+                
+                if (gameData.player.armour === undefined) {
+                    gameData.player.armour = 0;
+                }
+
+                // ✨ FIX: Check for outdated upgrade data and reset if necessary
+                if (gameData.player.upgrades && (!gameData.player.upgrades[0] || !gameData.player.upgrades[0].type)) {
+                    console.log("Old upgrade data detected. Resetting to new structure.");
+                    gameData.player.upgrades = [
+                        { name: "Sharpened Blade",  type: 'damage',      level: 0, cost: 30, bonus: 2 },
+                        { name: "Arcane Focus",    type: 'healthRegen', level: 0, cost: 60, bonus: 5 },
+                        { name: "Champion's Might",  type: 'armour',      level: 0, cost: 120, bonus: 1 }
+                    ];
+                }
+            }
+        };
+
+        const initGame = () => {
+            loadGame();
+            
+            const todayStr = todayDateStr();
+            gameData.tasks.forEach(task => {
+                if (task.difficulty === 0 && !task.completedToday && task.startDate && task.startDate < todayStr) {
+                    task.completedToday = true;
+                }
+            });
+
+            if (!isSameLocalDay(gameData.lastOpenISO, nowLocalISO())) {
+                applyEndOfDayPenalties(); 
+
+                gameData.lastOpenISO = nowLocalISO();
+                
+                // ✨ FIX IS HERE: This now resets sub-tasks as well
+                gameData.tasks.forEach(t => { 
+                    t.completedToday = false; 
+                    if (t.subTasks) {
+                        t.subTasks.forEach(sub => sub.completedToday = false);
+                    }
+                });
+                
+                saveGame();
+            }
+            applyTheme(gameData.theme || 'light');
+            toggleFormFields('task'); 
+            updateUI();
+            setupEventListeners();
+            showMainView('dashboard-view');
+            startEventCompletionChecker();
+        };
+
+        function applyEndOfDayPenalties() {
+            const previousDay = new Date(gameData.lastOpenISO);
+            // Handle edge case where a user opens the app for the first time
+            if (!previousDay) return; 
+
+            const previousDayStr = toDateStr(previousDay);
+            let totalDamage = 0;
+            const missedTasks = [];
+
+            const calculatePenaltyDamage = (difficulty) => {
+                // This formula scales damage from 3 (at diff 1) to 12 (at diff 5)
+                const damage = 3 + (difficulty - 1) * 2.25;
+                return Math.round(damage);
+            };
+
+            gameData.tasks.forEach(task => {
+                // Handle projects with sub-tasks
+                if (task.subTasks && task.subTasks.length > 0) {
+                    task.subTasks.forEach(subTask => {
+                        // Check if a sub-task was due yesterday and was not completed
+                        if (subTask.startDate === previousDayStr && !subTask.completedToday && task.difficulty > 0) {
+                            const damage = calculatePenaltyDamage(task.difficulty);
+                            totalDamage += damage;
+                            missedTasks.push(subTask.title);
+                        }
+                    });
+                } 
+                // Handle standalone tasks
+                else if (isOnDate(task, previousDay) && !task.completedToday && task.difficulty > 0) {
+                    const damage = calculatePenaltyDamage(task.difficulty);
+                    totalDamage += damage;
+                    missedTasks.push(task.title);
+                }
+            });
+
+            if (totalDamage > 0) {
+                gameData.player.health = Math.max(0, gameData.player.health - totalDamage);
+                
+                // Use a short timeout so the alert doesn't block the initial page load
+                setTimeout(() => {
+                    alert(`You missed ${missedTasks.length} quest(s) yesterday and took ${totalDamage} damage!\n\nMissed:\n- ${missedTasks.join('\n- ')}`);
+                }, 500);
+            }
+        }
+        
+        const updateUI = () => {
+            updatePlayerStats();
+            updateDetailedPlayerStats();
+            updateTasksList();
+            updateEnemyDisplay();
+            updateShop();
+            updatePomodoroDisplay();
+            renderCalendar(); // ✨ This line tells the calendar to refresh
+        };
+        
+        const setupEventListeners = () => {
+            document.getElementById("task-frequency").addEventListener("change", (e) => {
+                document.getElementById('quest-fields-repeating').style.display = e.target.value === 'weekly' ? 'block' : 'none';
+            });
+            
+            // ✨ RESTORED: Event listeners for the new Tasks page
+            const datePicker = document.getElementById('date-picker');
+            const prevDayBtn = document.getElementById('prev-day-btn');
+            const nextDayBtn = document.getElementById('next-day-btn');
+
+            datePicker.addEventListener('change', () => {
+                renderTasksForDate(datePicker.value);
+            });
+
+            prevDayBtn.addEventListener('click', () => {
+                const currentDate = new Date(datePicker.value + 'T12:00:00');
+                currentDate.setDate(currentDate.getDate() - 1);
+                datePicker.value = toDateStr(currentDate);
+                renderTasksForDate(datePicker.value);
+            });
+
+            nextDayBtn.addEventListener('click', () => {
+                const currentDate = new Date(datePicker.value + 'T12:00:00');
+                currentDate.setDate(currentDate.getDate() + 1);
+                datePicker.value = toDateStr(currentDate);
+                renderTasksForDate(datePicker.value);
+            });
+
+            const setupSlider = (sliderId, fillId, valueId, property, pomodoro = false) => {
+                const slider = document.getElementById(sliderId), fill = document.getElementById(fillId), valueSpan = document.getElementById(valueId);
+                if (!slider || !valueSpan) return;
+                const update = () => {
+                    const value = Number(slider.value), min = Number(slider.min), max = Number(slider.max);
+                    const percent = ((value - min) / (max - min)) * 100;
+                    if(valueSpan) valueSpan.textContent = value; 
+                    if (fill) fill.style.width = `${percent}%`;
+                    if (pomodoro && property) gameData.pomodoro[property] = value;
+                };
+                slider.addEventListener('input', () => {
+                    update();
+                    if (pomodoro && property === 'focusMinutes' && gameData.pomodoro.mode === 'focus') {
+                        gameData.pomodoro.secondsLeft = gameData.pomodoro.focusMinutes * 60;
+                        updatePomodoroDisplay();
+                    }
+                    if(!pomodoro) saveGame(); 
+                });
+                if(pomodoro) slider.value = gameData.pomodoro[property] || slider.value;
+                update();
+            };
+            setupSlider('difficulty-slider', 'difficulty-fill', 'difficulty-value', null);
+            setupSlider('modal-difficulty-slider', 'modal-difficulty-fill', 'modal-difficulty-value', null);
+            setupSlider('focus-slider', 'focus-fill', 'focus-value', 'focusMinutes', true);
+            setupSlider('short-break-slider', 'short-break-fill', 'short-break-value', 'shortBreakMinutes', true);
+            setupSlider('long-break-slider', 'long-break-fill', 'long-break-value', 'longBreakMinutes', true);
+            setupSlider('sessions-slider', 'sessions-fill', 'sessions-value', 'sessionsUntilLongBreak', true);
+            document.getElementById('theme-toggle').addEventListener('click', toggleTheme);
+        };
+
+        // REPLACE this function
+        function initiateDelete(btn, taskId) {
+            event.stopPropagation();
+
+            // Store the button's original HTML (the icon)
+            const originalHTML = btn.innerHTML;
+            const originalOnclick = btn.getAttribute('onclick');
+
+            // Change the button to its confirmation state (plain text is clear here)
+            btn.textContent = 'Confirm?';
+            btn.classList.remove('btn-icon'); // Temporarily remove class to fit text
+            btn.setAttribute('onclick', `confirmDelete('${taskId}')`);
+
+            setTimeout(() => {
+                if (document.body.contains(btn) && btn.textContent === 'Confirm?') {
+                    // Restore the original icon and classes
+                    btn.innerHTML = originalHTML;
+                    btn.classList.add('btn-icon');
+                    btn.setAttribute('onclick', originalOnclick);
+                }
+            }, 3000);
+        }
+
+        /**
+         * Handles the second click (confirmation).
+         * It calls the removeTask function and updates the UI.
+         */
+        function confirmDelete(taskId) {
+            event.stopPropagation();
+            removeTask(taskId); // Remove the task from data
+            updateUI();         // Re-render the user interface
+        }
+
+        /**
+         * (REPLACE your old removeTask function with this one)
+         * Removes a task or sub-task by its ID from the gameData object.
+         */
+        const removeTask = (taskId, needsConfirmation = true) => {
+            // First, try to remove a parent task.
+            const initialLength = gameData.tasks.length;
+            gameData.tasks = gameData.tasks.filter(task => task.id !== taskId);
+
+            // If no parent task was removed, search within sub-tasks.
+            if (gameData.tasks.length === initialLength) {
+                gameData.tasks.forEach(parentTask => {
+                    if (parentTask.subTasks) {
+                        parentTask.subTasks = parentTask.subTasks.filter(sub => sub.id !== taskId);
+                    }
+                });
+            }
+            saveGame();
+        };
+
+        // REPLACE your entire renderTasksForDate function with this
+        function renderTasksForDate(dateStr) {
+            const container = document.getElementById('day-wise-tasks-list');
+            if (!container) return;
+            
+            const cellDate = new Date(dateStr + "T12:00:00");
+            
+            // ✨ NEW LOGIC: Find ALL items for the day, including sub-tasks
+            let itemsForDay = [];
+            gameData.tasks.forEach(task => {
+                // Case 1: It's a project with sub-tasks
+                if (task.subTasks && task.subTasks.length > 0) {
+                    const relevantSubtask = task.subTasks.find(sub => sub.startDate === dateStr);
+                    if (relevantSubtask) {
+                        // We found the specific sub-task for today. Add it to the list,
+                        // carrying over the parent's category and difficulty for context.
+                        itemsForDay.push({ ...relevantSubtask, parentCategory: task.category, parentDifficulty: task.difficulty });
+                    }
+                } 
+                // Case 2: It's a regular, standalone task
+                else if (isOnDate(task, cellDate)) {
+                    itemsForDay.push(task);
+                }
+            });
+
+            if (itemsForDay.length === 0) {
+                container.innerHTML = '<p class="card-description">No items scheduled for this day.</p>';
+                return;
+            }
+
+            let html = '';
+            itemsForDay.sort((a, b) => (a.startTime || '23:59').localeCompare(b.startTime || '23:59'))
+                .forEach(item => {
+                    // Use parent's info for sub-tasks, or the item's own info for regular tasks
+                    const category = item.parentCategory || item.category;
+                    const difficulty = item.parentDifficulty || item.difficulty;
+                    const isEvent = difficulty === 0;
+
+                    const timeInfo = item.startTime ? `<span>🕒 ${format12Hour(item.startTime)}</span>` : '<span>🕒 All-Day</span>';
+                    const completedClass = item.completedToday ? 'completed' : '';
+                    
+                    let actionHtml = '';
+                    if (!isEvent) {
+                        actionHtml = item.completedToday 
+                            ? `<button class="btn btn-secondary" onclick="resetTaskToday('${item.id}'); event.stopPropagation(); renderTasksForDate('${dateStr}');">Undo</button>`
+                            : `<button class="btn btn-primary" onclick="completeTask('${item.id}'); event.stopPropagation(); renderTasksForDate('${dateStr}');">Complete</button>`;
+                    }
+
+                    html += `<div class="task-item ${completedClass}" onclick="openTaskEditModal('${item.id}')">
+                    <div class="task-info" style="flex-grow: 1;">
+                        <strong><span class="badge">${category}</span> ${item.title}</strong>
+                        <div class="task-meta">
+                            ${timeInfo} 
+                            ${isEvent ? '<span>Event</span>' : `<span>Diff ${difficulty}</span>`} 
+                        </div>
+                    </div>
+                    <div class="task-actions" style="flex-shrink: 0; padding-left: 1rem; display: flex; align-items: center; gap: 0.5rem;">
+                        ${actionHtml}
+                        <button class="btn btn-ghost btn-icon" style="color: var(--danger);" onclick="handleDeleteClick(this, '${item.id}')">${trashIconSvg}</button>
+                    </div>
+                </div>`;
+                });
+            
+            container.innerHTML = html;
+        };
+
+        function showMainView(viewId) {
+            document.querySelectorAll('.main-view').forEach(v => v.classList.remove('active'));
+            document.getElementById(viewId).classList.add('active');
+            document.querySelectorAll('#main-nav a').forEach(a => a.classList.remove('active'));
+            document.querySelector(`#main-nav a[onclick="showMainView('${viewId}')"]`).classList.add('active');
+
+            const sidebarAuthBtn = document.getElementById('sidebar-auth-button');
+            const calendarAuthBtn = document.getElementById('calendar-auth-button');
+
+            if (sidebarAuthBtn && calendarAuthBtn && gapiInited && gisInited) {
+                if (viewId === 'calendar-view') {
+                    sidebarAuthBtn.style.visibility = 'hidden';
+                    calendarAuthBtn.style.visibility = 'visible';
+                } else {
+                    sidebarAuthBtn.style.visibility = 'visible';
+                    calendarAuthBtn.style.visibility = 'hidden';
+                }
+            }
+
+            if (viewId === 'dashboard-view' || viewId === 'calendar-view') {
+                renderCalendar();
+            }
+
+            if (viewId === 'tasks-view') {
+                const datePicker = document.getElementById('date-picker');
+                if (!datePicker.value) {
+                    datePicker.value = todayDateStr();
+                }
+                renderTasksForDate(datePicker.value);
+            }
+            
+            // ✨ FIX ADDED HERE: Always update stats when viewing the Arena
+            if (viewId === 'arena-view') {
+                updateDetailedPlayerStats();
+            }
+        }
+        
+        const getTotalDamage = () => {
+            const upgradeDamage = gameData.player.upgrades
+                .filter(u => u.type === 'damage')
+                .reduce((sum, u) => sum + u.level * u.bonus, 0);
+            return gameData.player.baseDamage + upgradeDamage;
+        };
+
+        const getTotalArmour = () => {
+            return gameData.player.upgrades
+                .filter(u => u.type === 'armour')
+                .reduce((sum, u) => sum + u.level * u.bonus, 0);
+        };
+        
+        const updatePlayerStats = () => {
+            const { level, xp, gold } = gameData.player;
+            const threshold = levelThreshold(level);
+            const xpPercent = threshold > 0 ? Math.min(100, (xp / threshold) * 100) : 0;
+            document.getElementById('xp-progress').style.width = `${xpPercent}%`;
+            document.getElementById('player-level').textContent = level;
+            document.getElementById('sidebar-player-level').textContent = `Level ${level}`;
+            document.getElementById('total-damage').textContent = getTotalDamage();
+            document.getElementById('player-gold').textContent = gold;
+            document.getElementById('shop-gold').textContent = gold;
+            document.getElementById('sidebar-player-gold').textContent = `${gold} Gold`;
+            const completedCount = gameData.tasks.filter(t => t.completedToday).length;
+            const totalCount = gameData.tasks.length;
+            const completionRate = totalCount ? (completedCount / totalCount) * 100 : 0;
+            document.getElementById('completed-count').textContent = completedCount;
+            document.getElementById('total-count').textContent = totalCount;
+            document.getElementById('completion-progress').style.width = `${completionRate}%`;
+        };
+
+        // REPLACE your entire updateTasksList function with this corrected version
+        const updateTasksList = () => {
+            const container = document.getElementById('tasks-list');
+            if (!container) return;
+
+            const expandedProjects = new Set();
+            document.querySelectorAll('.subtasks-container').forEach(container => {
+                if (container.style.display === 'block') {
+                    const taskId = container.id.replace('subtasks-', '');
+                    expandedProjects.add(taskId);
+                }
+            });
+
+            const activeItems = gameData.tasks.filter(t => t.difficulty > 0 && !t.completedToday);
+            
+            if (activeItems.length === 0) {
+                container.innerHTML = '<p class="card-description">No active quests. Add one above to get started!</p>';
+                return;
+            }
+
+            let html = '<div><h2>Active Quests & Projects</h2>';
+
+            activeItems.sort((a, b) => (a.startDate || 'z').localeCompare(b.startDate || 'z')).forEach(task => {
+                if (task.subTasks && task.subTasks.length > 0) {
+                    const completedSubs = task.subTasks.filter(st => st.completedToday).length;
+                    const totalSubs = task.subTasks.length;
+                    html += `
+                        <div class="task-item is-parent" onclick="toggleSubtasks('${task.id}', event)">
+                            <div style="flex-grow: 1; display: flex; justify-content: space-between; align-items: center;">
+                                <div>
+                                    <strong><span class="badge">${task.category}</span> ${task.title}</strong>
+                                    <div class="task-meta">
+                                        <span>Project</span>
+                                        <span>Diff ${task.difficulty}</span>
+                                        <span>${completedSubs} / ${totalSubs} Done</span>
+                                    </div>
+                                </div>
+                                <svg class="icon toggle-icon" id="icon-${task.id}" viewBox="0 0 24 24" style="transition: transform 0.2s;"><path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m9 18l6-6l-6-6"/></svg>
+                            </div>
+                        </div>
+                        <div class="subtasks-container" id="subtasks-${task.id}">
+                            ${task.subTasks.map(sub => `
+                                <div class="task-item sub-task ${sub.completedToday ? 'completed' : ''}">
+                                    <div class="task-info" style="flex-grow: 1;">
+                                        <span>${sub.title} <span style="font-weight: 300; color: var(--text-muted); font-size: 0.8em;">(${sub.startDate})</span></span>
+                                    </div>
+                                    <div class="task-actions" style="flex-shrink: 0; padding-left: 1rem; display: flex; align-items: center; gap: 0.5rem;">
+                                        ${!sub.completedToday ? `<button class="btn btn-primary" onclick="handleDashboardCompleteClick('${sub.id}', event)">Complete</button>` : `<button class="btn btn-secondary" onclick="resetTaskToday('${sub.id}'); event.stopPropagation(); updateUI();">Undo</button>`}
+                                        <button class="btn btn-ghost btn-icon" style="color: var(--danger);" onclick="handleDeleteClick(this, '${sub.id}')">${trashIconSvg}</button>
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>`;
+                } 
+                else {
+                    let timeInfo = '';
+                    if (task.startTime) {
+                        let timeString = format12Hour(task.startTime);
+                        if (task.endTime) {
+                            timeString += ` - ${format12Hour(task.endTime)}`;
+                        }
+                        timeInfo = `<span>🕒 ${timeString}</span>`;
+                    }
+                    const completeButtonHtml = `<button class="btn btn-primary" onclick="handleDashboardCompleteClick('${task.id}', event)">Complete</button>`;
+                    html += `<div class="task-item" onclick="openTaskEditModal('${task.id}')">
+                        <div class="task-info" style="flex-grow: 1;">
+                            <strong><span class="badge">${task.category}</span> ${task.title}</strong>
+                            <div class="task-meta">
+                                ${timeInfo} 
+                                <span>Diff ${task.difficulty}</span> 
+                            </div>
+                        </div>
+                        <div class="task-actions" style="flex-shrink: 0; padding-left: 1rem; display: flex; align-items: center; gap: 0.5rem;">
+                            ${completeButtonHtml}
+                            <button class="btn btn-ghost btn-icon" style="color: var(--danger);" onclick="handleDeleteClick(this, '${task.id}')">${trashIconSvg}</button>
+                        </div>
+                    </div>`;
+                }
+            });
+
+            html += '</div>';
+            container.innerHTML = html;
+
+            expandedProjects.forEach(taskId => {
+                const subtaskContainer = document.getElementById(`subtasks-${taskId}`);
+                const icon = document.getElementById(`icon-${taskId}`);
+                if (subtaskContainer && icon) {
+                    subtaskContainer.style.display = 'block';
+                    icon.style.transform = 'rotate(90deg)';
+                }
+            });
+        };
+
+        // ADD THIS NEW FUNCTION to handle the expand/collapse
+        function toggleSubtasks(taskId, event) {
+            // Prevent the modal from opening when clicking the parent
+            if (event.target.closest('.is-parent')) {
+                event.stopPropagation();
+            }
+            const container = document.getElementById(`subtasks-${taskId}`);
+            const icon = document.getElementById(`icon-${taskId}`);
+            container.style.display = container.style.display === 'block' ? 'none' : 'block';
+            icon.style.transform = container.style.display === 'block' ? 'rotate(90deg)' : 'rotate(0deg)';
+        }
+
+        const updateEnemyDisplay = () => {
+            const { name, level, hp, maxHp } = gameData.enemy;
+            const hpPercent = maxHp > 0 ? (hp / maxHp) * 100 : 0;
+            document.getElementById('enemy-progress').style.width = `${hpPercent}%`;
+            document.getElementById('enemy-name').textContent = name;
+            document.getElementById('enemy-level').textContent = level;
+            document.getElementById('enemy-hp').textContent = hp;
+            document.getElementById('enemy-max-hp').textContent = maxHp;
+        };
+
+        const updateShop = () => {
+            const container = document.getElementById('upgrades-list');
+            container.innerHTML = gameData.player.upgrades.map((upgrade, index) => {
+                const cost = Math.round(upgrade.cost * (1 + upgrade.level * 0.6));
+                const canAfford = gameData.player.gold >= cost;
+
+                // ✨ NEW: Calculate the total bonus and create a more detailed description
+                let description = '';
+                const totalBonus = upgrade.level * upgrade.bonus;
+
+                switch (upgrade.type) {
+                    case 'damage':
+                        description = `Current Bonus: <strong>+${totalBonus} Damage</strong><br><small style="color: var(--text-muted)">(+${upgrade.bonus} per level)</small>`;
+                        break;
+                    case 'healthRegen':
+                        description = `Current Bonus: <strong>+${totalBonus} HP/task</strong><br><small style="color: var(--text-muted)">(+${upgrade.bonus} per level)</small>`;
+                        break;
+                    case 'armour':
+                        description = `Current Bonus: <strong>+${totalBonus} Armour</strong><br><small style="color: var(--text-muted)">(+${upgrade.bonus} per level)</small>`;
+                        break;
+                }
+
+                return `<div class="card">
+                    <h3 class="card-title">${upgrade.name}</h3>
+                    <p class="card-description">Level ${upgrade.level}</p>
+                    <div style="margin-bottom: 1rem; line-height: 1.4;">${description}</div>
+                    <button class="btn btn-primary" onclick="buyUpgrade(${index})" ${!canAfford ? 'disabled' : ''}>Buy (${cost}g)</button>
+                </div>`;
+            }).join('');
+        };
+        
+        const updatePomodoroDisplay = () => {
+            const { secondsLeft, mode, running } = gameData.pomodoro;
+            const minutes = Math.floor(secondsLeft / 60).toString().padStart(2, '0');
+            const seconds = (secondsLeft % 60).toString().padStart(2, '0');
+            const timeString = `${minutes}:${seconds}`;
+            
+            document.getElementById('pomodoro-display').textContent = timeString;
+            const focusTimerDisplay = document.getElementById('focus-mode-timer-display');
+            if (focusTimerDisplay) focusTimerDisplay.textContent = timeString;
+
+            document.getElementById('pomodoro-mode').textContent = mode;
+            document.getElementById('pomodoro-btn').textContent = running ? 'Pause' : 'Start';
+        };
+
+        const addTask = async (event) => {
+            console.clear();
+            console.log("--- Debugging addTask ---");
+            event.preventDefault();
+            const form = event.target;
+            
+            const title = form.querySelector('#task-title').value.trim();
+            const taskType = form.querySelector('input[name="task-type"]:checked').value;
+            console.log(`Task Type selected: ${taskType}`);
+
+            const category = form.querySelector('#task-category').value;
+            const difficulty = parseInt(form.querySelector('#difficulty-slider').value, 10);
+            const startDateStr = form.querySelector('#task-start-date').value;
+            const dueDateStr = form.querySelector('#task-due-date').value;
+
+            let newTaskObject;
+
+            if (taskType === 'task' && startDateStr && dueDateStr && dueDateStr > startDateStr) {
+                console.log("Creating a multi-day project.");
+                const subTasks = [];
+                let currentDate = new Date(startDateStr + 'T12:00:00');
+                const dayCount = (new Date(dueDateStr) - new Date(startDateStr)) / (1000 * 60 * 60 * 24) + 1;
+
+                for (let i = 1; i <= dayCount; i++) {
+                    subTasks.push({
+                        id: crypto.randomUUID(), title: `${title} (Day ${i} of ${dayCount})`,
+                        completedToday: false, startDate: toDateStr(currentDate),
+                    });
+                    currentDate.setDate(currentDate.getDate() + 1);
+                }
+                newTaskObject = {
+                    id: crypto.randomUUID(), title: title, category: category, frequency: 'once', 
+                    difficulty: difficulty, completedToday: false, startDate: startDateStr, 
+                    dueDate: dueDateStr, subTasks: subTasks
+                };
+            } else {
+                console.log("Creating a single task or event.");
+                newTaskObject = {
+                    id: crypto.randomUUID(), title: title, category: category,
+                    frequency: taskType === 'event' ? 'once' : form.querySelector('#task-frequency').value,
+                    difficulty: taskType === 'event' ? 0 : difficulty, completedToday: false,
+                    startDate: startDateStr || todayDateStr(), dueDate: dueDateStr || null,
+                    startTime: form.querySelector('#task-start-time').value || null,
+                    endTime: form.querySelector('#task-end-time').value || null,
+                };
+            }
+
+            console.log("New local task object created:", newTaskObject);
+            gameData.tasks.push(newTaskObject);
+            
+            console.log("Checking Google sign-in status...");
+            if (gapi.client.getToken()) {
+                console.log("✅ User is signed in. Attempting to push to Google.");
+                
+                if (newTaskObject.difficulty > 0) { // It's a Quest or Project -> send to Google Tasks
+                    console.log("Item is a Quest/Project. Sending to Google Tasks...");
+                    if (newTaskObject.subTasks) { // Project with sub-tasks
+                        for (const sub of newTaskObject.subTasks) {
+                            const newTaskId = await createGoogleTask(sub);
+                            if (newTaskId) sub.googleTaskId = newTaskId;
+                        }
+                    } else { // Standalone Quest
+                        const newTaskId = await createGoogleTask(newTaskObject);
+                        if (newTaskId) newTaskObject.googleTaskId = newTaskId;
+                    }
+                } else { // It's an Event -> send to Google Calendar
+                    console.log("Item is an Event. Sending to Google Calendar...");
+                    const newEventData = await createGoogleCalendarEvent(newTaskObject);
+                    if (newEventData) newTaskObject.googleCalendarEventId = newEventData.id;
+                }
+            } else {
+                console.log("❌ User is NOT signed in. Skipping immediate Google sync.");
+            }
+            
+            form.reset();
+            hideDateInputs();
+            hideTimeInputs();
+            toggleFormFields('task');
+            updateUI();
+            saveGame();
+            console.log("--- addTask Finished ---");
+        };
+
+        async function createGoogleCalendarEvent(task) {
+            try {
+                const isAllDay = !task.startTime;
+                let start, end;
+
+                if (isAllDay) {
+                    const endDate = new Date(task.startDate + 'T12:00:00');
+                    endDate.setDate(endDate.getDate() + 1);
+                    start = { 'date': task.startDate };
+                    end = { 'date': toDateStr(endDate) };
+                } else {
+                    start = { 'dateTime': new Date(`${task.startDate}T${task.startTime}`).toISOString() };
+                    const endHour = (parseInt(task.startTime.split(':')[0]) + 1) % 24;
+                    const endTime = task.endTime || `${String(endHour).padStart(2, '0')}:${task.startTime.split(':')[1]}`;
+                    end = { 'dateTime': new Date(`${task.startDate}T${endTime}`).toISOString() };
+                }
+
+                const event = {
+                    'summary': task.title,
+                    'description': `Event from QuestList.`,
+                    'start': start,
+                    'end': end,
+                };
+
+                const response = await gapi.client.calendar.events.insert({
+                    'calendarId': 'primary',
+                    'resource': event
+                });
+                console.log('Google Calendar Event created: ', response.result.htmlLink);
+                return { id: response.result.id };
+            } catch (error) {
+                console.error("Error creating Google Calendar event:", error);
+                return null;
+            }
+        }
+        
+        async function createGoogleTask(task) {
+            try {
+                const response = await gapi.client.tasks.tasks.insert({
+                    tasklist: '@default',
+                    resource: {
+                        title: task.title,
+                        due: new Date(task.startDate + 'T23:59:59Z').toISOString()
+                    }
+                });
+                console.log('Google Task created:', response.result.title);
+                return response.result.id;
+            } catch (error) {
+                console.error("Error creating Google Task:", error);
+                return null;
+            }
+        }
+
+        // ADD THIS NEW HELPER FUNCTION
+        function findTaskAndParent(taskId) {
+            for (const parentTask of gameData.tasks) {
+                // Check if the parent task itself is the target
+                if (parentTask.id === taskId) {
+                    return { task: parentTask, parent: null };
+                }
+                // If it has sub-tasks, search within them
+                if (parentTask.subTasks && parentTask.subTasks.length > 0) {
+                    for (const subTask of parentTask.subTasks) {
+                        if (subTask.id === taskId) {
+                            return { task: subTask, parent: parentTask };
+                        }
+                    }
+                }
+            }
+            return { task: null, parent: null }; // Return null if not found
+        }
+
+        function completeTask(taskId) {
+            const { task, parent } = findTaskAndParent(taskId);
+            if (!task || task.completedToday) return;
+
+            task.completedToday = true; // Update local UI instantly
+            updateGoogleEventStatus(taskId, true); // Push change to Google
+            
+            let difficulty = parent ? parent.difficulty : task.difficulty;
+            if (difficulty > 0) {
+                const healthRegen = gameData.player.upgrades.find(u => u.type === 'healthRegen').level * gameData.player.upgrades.find(u => u.type === 'healthRegen').bonus;
+                gameData.player.health = Math.min(gameData.player.maxHealth, gameData.player.health + healthRegen);
+                const damage = Math.round(getTotalDamage() * (0.6 + 0.2 * difficulty));
+                gameData.enemy.hp = Math.max(0, gameData.enemy.hp - damage);
+                gameData.player.xp += 15 * difficulty;
+                gameData.player.gold += 5 * difficulty;
+                levelUpCheck();
+                if (gameData.enemy.hp === 0) {
+                    gameData.player.xp += gameData.enemy.rewardXp;
+                    gameData.player.gold += gameData.enemy.rewardGold;
+                    levelUpCheck();
+                    gameData.enemy = seedEnemy(gameData.enemy.level + 1);
+                }
+                if (parent && parent.subTasks.every(st => st.completedToday)) {
+                    parent.completedToday = true;
+                    gameData.player.xp += 30 * parent.difficulty;
+                    gameData.player.gold += 15 * parent.difficulty;
+                    levelUpCheck();
+                }
+            }
+            saveGame();
+        };
+
+        // ✨ NEW: A dedicated handler for dashboard complete buttons
+        function handleDashboardCompleteClick(taskId, event) {
+            event.stopPropagation();
+            completeTask(taskId); // First, update the data
+            updateUI();           // THEN, refresh the screen
+        }
+
+        // REPLACE THIS FUNCTION
+        function resetTaskToday(taskId) {
+            const { task, parent } = findTaskAndParent(taskId);
+            if (!task || !task.completedToday) return;
+
+            task.completedToday = false;
+
+            // ✨ NEW: Check which service to update
+            if (task.googleCalendarEventId) {
+                updateGoogleEventStatus(taskId, false);
+            } else if (task.googleTaskId) {
+                updateGoogleTaskStatus(task.googleTaskId, 'needsAction');
+            }
+
+            let difficulty = parent ? parent.difficulty : task.difficulty;
+            if (difficulty > 0) {
+                // ... (rest of the game logic is unchanged)
+                const damageToHeal = Math.round(getTotalDamage() * (0.6 + 0.2 * difficulty));
+                gameData.player.xp -= 15 * difficulty;
+                gameData.player.gold -= 5 * difficulty;
+                gameData.enemy.hp += damageToHeal;
+                if (parent && parent.completedToday) {
+                    parent.completedToday = false;
+                    gameData.player.xp -= 30 * parent.difficulty;
+                    gameData.player.gold -= 15 * parent.difficulty;
+                }
+                if (gameData.player.gold < 0) gameData.player.gold = 0;
+                gameData.enemy.hp = Math.min(gameData.enemy.maxHp, gameData.enemy.hp);
+            }
+            saveGame();
+        }
+
+        async function createGoogleTask(task) {
+            try {
+                const response = await gapi.client.tasks.tasks.insert({
+                    tasklist: '@default',
+                    resource: {
+                        title: task.title,
+                        due: new Date(task.startDate + 'T23:59:59Z').toISOString()
+                    }
+                });
+                return response.result.id;
+            } catch (error) {
+                console.error("Error creating Google Task:", error);
+                return null;
+            }
+        }
+
+        const levelUpCheck = () => {
+            while (gameData.player.xp >= levelThreshold(gameData.player.level)) {
+                gameData.player.xp -= levelThreshold(gameData.player.level);
+                gameData.player.level++;
+                gameData.player.maxHealth += 10;
+                gameData.player.health = gameData.player.maxHealth;
+            }
+        };
+        const buyUpgrade = (index) => {
+            const upgrade = gameData.player.upgrades[index];
+            const cost = Math.round(upgrade.cost * (1 + upgrade.level * 0.6));
+            if (gameData.player.gold >= cost) {
+                gameData.player.gold -= cost;
+                upgrade.level++;
+                updateUI(); saveGame();
+            }
+        };
+
+        function applyTheme(theme) {
+            const btn = document.getElementById('theme-toggle-btn');
+            if (theme === 'dark') {
+                document.body.classList.add('dark-theme');
+                if (btn) btn.textContent = 'Switch to Light Mode';
+            } else {
+                document.body.classList.remove('dark-theme');
+                if (btn) btn.textContent = 'Switch to Dark Mode';
+            }
+        }
+
+        function toggleFormFields(type) {
+            const questFields = document.getElementById('quest-fields-container');
+            const categoryGroup = document.getElementById('category-form-group');
+            const categorySelect = document.getElementById('task-category');
+            
+            document.getElementById('type-label-task').classList.toggle('active', type === 'task');
+            document.getElementById('type-label-event').classList.toggle('active', type === 'event');
+
+            questFields.style.display = type === 'task' ? 'block' : 'none';
+            categoryGroup.style.display = 'block';
+            
+            categorySelect.innerHTML = ''; 
+            const categories = (type === 'event') ? eventCategories : taskCategories;
+            categories.forEach(cat => {
+                const option = document.createElement('option');
+                option.value = cat; option.textContent = cat;
+                categorySelect.appendChild(option);
+            });
+        }
+        function showDateInputs() {
+            document.getElementById('date-button-container').style.display = 'none';
+            document.getElementById('date-inputs-container').style.display = 'block';
+        }
+        function hideDateInputs() {
+            document.getElementById('date-button-container').style.display = 'block';
+            document.getElementById('date-inputs-container').style.display = 'none';
+            document.getElementById('task-start-date').value = '';
+            document.getElementById('task-due-date').value = '';
+        }
+        function showTimeInputs() {
+            document.getElementById('time-button-container').style.display = 'none';
+            document.getElementById('time-inputs-container').style.display = 'block';
+        }
+        function hideTimeInputs() {
+            document.getElementById('time-button-container').style.display = 'block';
+            document.getElementById('time-inputs-container').style.display = 'none';
+            document.getElementById('task-start-time').value = '';
+            document.getElementById('task-end-time').value = '';
+        }
+
+        function toggleTheme() {
+            const newTheme = document.body.classList.contains('dark-theme') ? 'light' : 'dark';
+            gameData.theme = newTheme;
+            applyTheme(newTheme);
+            saveGame();
+        }
+        
+        function openTaskEditModal(taskId) {
+            const task = gameData.tasks.find(t => t.id === taskId);
+            if (!task) return;
+
+            const isEvent = task.difficulty === 0;
+            const modal = document.getElementById('task-edit-modal');
+            
+            document.getElementById('edit-task-id').value = taskId;
+            document.getElementById('edit-task-title').value = task.title;
+            document.getElementById('edit-task-start-date').value = task.startDate || '';
+            document.getElementById('edit-task-start-time').value = task.startTime || '';
+            document.getElementById('edit-task-end-date').value = task.dueDate || '';
+            document.getElementById('edit-task-end-time').value = task.endTime || '';
+
+            document.getElementById('edit-difficulty-wrapper').style.display = isEvent ? 'none' : 'block';
+            
+            const deleteBtn = document.getElementById('modal-delete-btn');
+            deleteBtn.textContent = isEvent ? 'Cancel Event' : 'Delete';
+            deleteBtn.setAttribute('onclick', 'initiateDelete(this)');
+
+            const categorySelect = document.getElementById('edit-task-category');
+            categorySelect.innerHTML = '';
+            const categories = isEvent ? eventCategories : taskCategories;
+            categories.forEach(cat => {
+                const option = document.createElement('option');
+                option.value = cat;
+                option.textContent = cat;
+                if (cat === task.category) option.selected = true;
+                categorySelect.appendChild(option);
+            });
+
+            const diffSlider = document.getElementById('edit-difficulty-slider');
+            const diffValue = document.getElementById('edit-difficulty-value');
+            const diffFill = document.getElementById('edit-difficulty-fill');
+            diffSlider.value = task.difficulty;
+            diffValue.textContent = task.difficulty;
+            const percent = ((task.difficulty - diffSlider.min) / (diffSlider.max - diffSlider.min)) * 100;
+            diffFill.style.width = `${percent}%`;
+            diffSlider.oninput = () => {
+                const val = diffSlider.value;
+                diffValue.textContent = val;
+                const p = ((val - diffSlider.min) / (diffSlider.max - diffSlider.min)) * 100;
+                diffFill.style.width = `${p}%`;
+            };
+
+            const completeBtn = document.getElementById('modal-complete-btn');
+            completeBtn.textContent = task.completedToday ? 'Undo' : 'Complete';
+
+            modal.classList.add('active');
+        }
+
+        function handleTaskUpdate(event) {
+            event.preventDefault();
+            const taskId = document.getElementById('edit-task-id').value;
+            const task = gameData.tasks.find(t => t.id === taskId);
+            if (!task) return;
+
+            task.title = document.getElementById('edit-task-title').value;
+            task.category = document.getElementById('edit-task-category').value;
+            task.startDate = document.getElementById('edit-task-start-date').value;
+            task.startTime = document.getElementById('edit-task-start-time').value;
+            task.dueDate = document.getElementById('edit-task-end-date').value;
+            task.endTime = document.getElementById('edit-task-end-time').value;
+
+            if (task.difficulty > 0) {
+                task.difficulty = parseInt(document.getElementById('edit-difficulty-slider').value, 10);
+            }
+
+            closeTaskEditModal();
+            updateUI();
+            saveGame();
+        }
+
+        function closeTaskEditModal() {
+            document.getElementById('task-edit-modal').classList.remove('active');
+        }
+
+        function toggleCompleteFromModal() {
+            const taskId = document.getElementById('edit-task-id').value;
+            const task = gameData.tasks.find(t => t.id === taskId);
+            if (!task) return;
+
+            if (task.completedToday) {
+                resetTaskToday(taskId);
+            } else {
+                completeTask(taskId);
+            }
+            
+            openTaskEditModal(taskId);
+        }
+
+        // ADD THIS NEW FUNCTION
+        function addSubtaskInput() {
+            const container = document.getElementById('subtasks-input-container');
+            const inputWrapper = document.createElement('div');
+            inputWrapper.style.display = 'flex';
+            inputWrapper.style.gap = '0.5rem';
+
+            const newInput = document.createElement('input');
+            newInput.type = 'text';
+            newInput.className = 'input subtask-input'; // Added 'subtask-input' class
+            newInput.placeholder = 'Sub-task title...';
+            newInput.style.flexGrow = '1';
+
+            const removeBtn = document.createElement('button');
+            removeBtn.type = 'button';
+            removeBtn.className = 'btn btn-danger';
+            removeBtn.textContent = '–';
+            removeBtn.onclick = () => inputWrapper.remove();
+            
+            inputWrapper.appendChild(newInput);
+            inputWrapper.appendChild(removeBtn);
+            container.appendChild(inputWrapper);
+        }
+
+        // ALSO ADD THIS HELPER TO CLEAR THE INPUTS
+        function clearSubtaskInputs() {
+            document.getElementById('subtasks-input-container').innerHTML = '';
+        }
+        
+        function resetPomodoro() {
+            gameData.pomodoro.running = false;
+            let minutes;
+            if (gameData.pomodoro.mode === 'focus') minutes = gameData.pomodoro.focusMinutes;
+            else if (gameData.pomodoro.mode === 'longBreak') minutes = gameData.pomodoro.longBreakMinutes;
+            else minutes = gameData.pomodoro.shortBreakMinutes;
+            gameData.pomodoro.secondsLeft = minutes * 60;
+            stopPomodoroTimer(); 
+            updatePomodoroDisplay(); 
+            saveGame();
+        }
+
+        function renderPomodoroOverlay() {
+            const { mode, lastSelectedTaskIds } = gameData.pomodoro;
+
+            const sidebar = document.getElementById('focus-task-sidebar');
+            const timerArea = document.getElementById('focus-timer-area');
+            const breakContainer = document.getElementById('focus-break-container');
+            const startBtn = document.getElementById('focus-mode-start-btn');
+            const title = document.getElementById('focus-task-title');
+            const skipButton = document.getElementById('skip-button');
+
+            document.getElementById('focus-setup-buttons').style.display = 'block';
+            document.getElementById('focus-running-buttons').style.display = 'none';
+
+            if (mode === 'focus') {
+                sidebar.style.display = 'flex';
+                timerArea.style.display = 'block';
+                breakContainer.style.display = 'none';
+                startBtn.textContent = 'Begin Focus Session';
+                title.textContent = 'Ready?';
+                startBtn.setAttribute('onclick', 'startSessionFromOverlay()');
+                skipButton.textContent = 'Skip to Break';
+                skipButton.setAttribute('onclick', 'skipToBreak()');
+
+                const taskList = document.getElementById('focus-task-list');
+                const focusableItems = [];
+                
+                gameData.tasks.forEach(task => {
+                    // Find any uncompleted quest or project
+                    if (task.difficulty > 0 && !task.completedToday) {
+                        // If it's a project, list its uncompleted sub-tasks
+                        if (task.subTasks && task.subTasks.length > 0) {
+                            task.subTasks.forEach(sub => {
+                                // ✨ FIX: The date check is removed to show all uncompleted sub-tasks
+                                if (!sub.completedToday) {
+                                    focusableItems.push({ id: sub.id, title: sub.title, difficulty: task.difficulty, category: task.category });
+                                }
+                            });
+                        } else {
+                            // ✨ FIX: The date check is also removed for standalone tasks
+                            focusableItems.push(task);
+                        }
+                    }
+                });
+
+                if (focusableItems.length > 0) {
+                    taskList.innerHTML = focusableItems.map(item => `
+                        <div class="focus-task-item" data-task-id="${item.id}" onclick="selectFocusTask('${item.id}', this)">
+                            <span>${item.title}</span>
+                            <span class="badge">Diff ${item.difficulty}</span>
+                        </div>
+                    `).join('');
+                } else {
+                    taskList.innerHTML = '<p class="card-description" style="text-align: center; padding: 1rem;">No active quests to focus on!</p>';
+                }
+
+                gameData.pomodoro.activeTaskIds = [];
+                startBtn.disabled = true;
+                if (lastSelectedTaskIds.length > 0) {
+                    lastSelectedTaskIds.forEach(taskId => {
+                        const taskElement = taskList.querySelector(`.focus-task-item[data-task-id="${taskId}"]`);
+                        if (taskElement) taskElement.click();
+                    });
+                }
+            } else { // Handle 'break' and 'longBreak'
+                sidebar.style.display = 'none';
+                timerArea.style.display = 'none';
+                breakContainer.style.display = 'block';
+                startBtn.textContent = 'Start Break';
+                title.textContent = '';
+                startBtn.disabled = false;
+                startBtn.setAttribute('onclick', 'startBreakSession()');
+            }
+        }
+
+        // ✨ NEW: This function handles the new "Complete" button in the focus overlay.
+        function completeTask(taskId) {
+            const { task, parent } = findTaskAndParent(taskId);
+            if (!task || task.completedToday) return;
+
+            task.completedToday = true;
+
+            // ✨ NEW: Check which service to update
+            if (task.googleCalendarEventId) {
+                updateGoogleEventStatus(taskId, true);
+            } else if (task.googleTaskId) {
+                updateGoogleTaskStatus(task.googleTaskId, 'completed');
+            }
+
+            let difficulty = parent ? parent.difficulty : task.difficulty;
+            if (difficulty > 0) {
+                // ... (rest of the game logic is unchanged)
+                const healthRegen = gameData.player.upgrades.find(u => u.type === 'healthRegen').level * gameData.player.upgrades.find(u => u.type === 'healthRegen').bonus;
+                gameData.player.health = Math.min(gameData.player.maxHealth, gameData.player.health + healthRegen);
+                const damage = Math.round(getTotalDamage() * (0.6 + 0.2 * difficulty));
+                gameData.enemy.hp = Math.max(0, gameData.enemy.hp - damage);
+                gameData.player.xp += 15 * difficulty;
+                gameData.player.gold += 5 * difficulty;
+                levelUpCheck();
+                if (gameData.enemy.hp === 0) {
+                    gameData.player.xp += gameData.enemy.rewardXp;
+                    gameData.player.gold += gameData.enemy.rewardGold;
+                    levelUpCheck();
+                    gameData.enemy = seedEnemy(gameData.enemy.level + 1);
+                }
+                if (parent && parent.subTasks.every(st => st.completedToday)) {
+                    parent.completedToday = true;
+                    gameData.player.xp += 30 * parent.difficulty;
+                    gameData.player.gold += 15 * parent.difficulty;
+                    levelUpCheck();
+                }
+            }
+            saveGame();
+        };
+
+        // 🔧 MODIFIED: This now just opens the overlay and calls the renderer
+        function togglePomodoro() {
+            if (gameData.pomodoro.running) {
+                // If timer is running, just pause it from dashboard
+                gameData.pomodoro.running = false;
+                stopPomodoroTimer();
+                updatePomodoroDisplay();
+            } else {
+                document.getElementById('pomodoro-focus-overlay').classList.add('active');
+                renderPomodoroOverlay(); // Render the correct initial view
+            }
+        }
+
+        // ADD THIS BLOCK OF NEW FUNCTIONS
+
+        /**
+         * Starts the focus session after tasks have been selected in the overlay.
+         */
+        function startSessionFromOverlay() {
+            if (gameData.pomodoro.activeTaskIds.length === 0) {
+                alert("Please select at least one quest to focus on.");
+                return;
+            }
+
+            gameData.pomodoro.lastSelectedTaskIds = [...gameData.pomodoro.activeTaskIds];
+            gameData.pomodoro.running = true;
+
+            // Update UI to "running" state
+            document.getElementById('focus-setup-buttons').style.display = 'none';
+            document.getElementById('focus-running-buttons').style.display = 'block';
+            document.getElementById('focus-task-sidebar').style.display = 'none';
+            document.getElementById('focus-timer-area').style.display = 'block';
+            document.getElementById('focus-break-container').style.display = 'none';
+            document.getElementById('focus-task-title').textContent = 'Focusing...';
+            
+            updateFocusSessionTaskDisplay(); 
+            startPomodoroTimer();
+            saveGame();
+        }
+
+        function startBreakSession() {
+            gameData.pomodoro.running = true;
+
+            // Update UI to "running" state for a break
+            document.getElementById('focus-setup-buttons').style.display = 'none';
+            document.getElementById('focus-running-buttons').style.display = 'block';
+            document.getElementById('focus-task-sidebar').style.display = 'none';
+            
+            // HIDE the "Time for a break" message and SHOW the timer area
+            document.getElementById('focus-break-container').style.display = 'none';
+            document.getElementById('focus-timer-area').style.display = 'block';
+            document.getElementById('focus-task-title').textContent = 'On a Break...';
+            document.getElementById('focus-session-task-display').innerHTML = '';
+
+            // Update the "skip" button to now say "Skip to Focus"
+            const skipButton = document.getElementById('skip-button');
+            skipButton.textContent = 'Skip to Focus';
+            skipButton.setAttribute('onclick', 'skipToFocus()');
+
+            startPomodoroTimer();
+            saveGame();
+        }
+
+        /**
+         * Renders the list of tasks currently being focused on during a session.
+         */
+        function updateFocusSessionTaskDisplay() {
+            const taskDisplay = document.getElementById('focus-session-task-display');
+            const activeIds = gameData.pomodoro.activeTaskIds;
+            
+            if (!taskDisplay || activeIds.length === 0) {
+                if (taskDisplay) taskDisplay.innerHTML = '<p class="card-description">No quests selected for this session.</p>';
+                return;
+            }
+
+            const activeItems = [];
+            activeIds.forEach(id => {
+                const { task } = findTaskAndParent(id);
+                if (task) activeItems.push(task);
+            });
+
+            let tasksHtml = '<strong>Focusing on:</strong>';
+            activeItems.forEach(item => {
+                tasksHtml += `<div class="focus-display-task-item">${item.title}</div>`;
+            });
+            taskDisplay.innerHTML = tasksHtml;
+        }
+
+
+        // ✨ NEW: This function handles skipping a break and returning to a focus session.
+        function skipToFocus() {
+            stopPomodoroTimer();
+            startNextPomodoroSession(true); // Sets up the next focus session
+            renderPomodoroOverlay(); // Re-renders the overlay in focus mode
+        }
+
+        // 🔧 MODIFIED: Now transitions to break state inside the overlay
+        function skipToBreak() {
+            stopPomodoroTimer();
+            startNextPomodoroSession(false); // Sets up the break session
+            renderPomodoroOverlay(); // Re-renders the overlay in break mode
+        }
+        
+        // 🔧 MODIFIED: Logic remains the same, but calls the modified skipToBreak
+        function completeAndEndSession() {
+            // Make a copy of the tasks to complete
+            const idsToComplete = [...gameData.pomodoro.activeTaskIds];
+
+            if (idsToComplete.length > 0) {
+                // Complete each task using the data-only function
+                idsToComplete.forEach(taskId => completeTask(taskId));
+            }
+            
+            // ✨ CRITICAL FIX: Clear the completed tasks from the session's memory
+            gameData.pomodoro.activeTaskIds = [];
+            gameData.pomodoro.lastSelectedTaskIds = [];
+            
+            // Now, simply transition to the break. The unnecessary updateUI() call is removed.
+            skipToBreak();
+        }
+
+        // 🔧 MODIFIED: The timer's completion logic now re-renders the overlay for the next session
+        function startPomodoroTimer() {
+            if (pomodoroInterval) clearInterval(pomodoroInterval);
+            pomodoroInterval = setInterval(() => {
+                gameData.pomodoro.secondsLeft--;
+                updatePomodoroDisplay();
+    
+                if (gameData.pomodoro.secondsLeft <= 0) {
+                    stopPomodoroTimer();
+                    const wasFocusSession = gameData.pomodoro.mode === 'focus';
+    
+                    if (wasFocusSession) {
+                        if (gameData.pomodoro.activeTaskIds && gameData.pomodoro.activeTaskIds.length > 0) {
+                            gameData.pomodoro.activeTaskIds.forEach(taskId => completeTask(taskId));
+                        } else {
+                            gameData.player.xp += 10;
+                            levelUpCheck();
+                        }
+                        startNextPomodoroSession(false); // Set up the break
+                    } else {
+                        startNextPomodoroSession(true); // Set up the next focus session
+                    }
+                    
+                    renderPomodoroOverlay(); // Re-render the overlay for the new session
+                } else {
+                    saveGame();
+                }
+            }, 1000);
+        }
+
+        // 🔧 MODIFIED: Now primarily for closing/cancelling the session completely
+        function exitFocusMode(resetToFocus = false) {
+            stopPomodoroTimer();
+            gameData.pomodoro.running = false;
+            document.getElementById('pomodoro-focus-overlay').classList.remove('active');
+            if (resetToFocus) {
+                startNextPomodoroSession(true); // Reset to a focus session
+            }
+            updatePomodoroDisplay();
+        }
+
+        function stopPomodoroTimer() { if (pomodoroInterval) { clearInterval(pomodoroInterval); pomodoroInterval = null; }}
+        function togglePomodoroSettings() { document.getElementById('pomodoro-settings').classList.toggle('active'); }
+
+        function selectFocusTask(taskId, element) {
+            const selectedIds = gameData.pomodoro.activeTaskIds;
+            const index = selectedIds.indexOf(taskId);
+
+            if (index > -1) {
+                selectedIds.splice(index, 1);
+                element.classList.remove('selected');
+            } else {
+                selectedIds.push(taskId);
+                element.classList.add('selected');
+            }
+
+            if (selectedIds.length === 0) {
+                document.getElementById('focus-task-title').textContent = 'Select quests to focus on';
+                document.getElementById('focus-mode-start-btn').disabled = true;
+            } else {
+                document.getElementById('focus-task-title').textContent = `${selectedIds.length} quest(s) selected`;
+                document.getElementById('focus-mode-start-btn').disabled = false;
+            }
+        }
+
+        function startNextPomodoroSession(isBreakOver) {
+            if (isBreakOver) {
+                gameData.pomodoro.mode = 'focus';
+                gameData.pomodoro.secondsLeft = gameData.pomodoro.focusMinutes * 60;
+            } else { // Focus is over, start a break
+                if (gameData.pomodoro.currentSession >= gameData.pomodoro.sessionsUntilLongBreak) {
+                    gameData.pomodoro.mode = 'longBreak';
+                    gameData.pomodoro.secondsLeft = gameData.pomodoro.longBreakMinutes * 60;
+                    gameData.pomodoro.currentSession = 1;
+                } else {
+                    gameData.pomodoro.mode = 'break';
+                    gameData.pomodoro.secondsLeft = gameData.pomodoro.shortBreakMinutes * 60;
+                    gameData.pomodoro.currentSession++;
+                }
+            }
+            gameData.pomodoro.activeTaskIds = [];
+            // updateUI(); // ✅ Problem solved!
+            saveGame();
+        }
+
+
+        function createUntimedEventFromView(event) {
+            if (event.target.closest('.untimed-task') || event.target.closest('.allday-event-item')) {
+                return; 
+            }
+
+            const overlay = document.getElementById("day-view-overlay");
+            const dateStr = overlay.dataset.currentDate;
+            if (!dateStr) return;
+
+            openTaskCreationModal({ date: dateStr, isUntimed: true, isEvent: true });
+        }
+
+        function renderCalendar() {
+            renderCalendarInstance('calendar-grid', 'calendar-month-year');
+            renderCalendarInstance('dashboard-calendar-grid', 'dashboard-calendar-month-year');
+        }
+
+        // REPLACE THIS FUNCTION
+        function renderCalendarInstance(gridId, monthYearId) {
+            const grid = document.getElementById(gridId);
+            const monthYearEl = document.getElementById(monthYearId);
+            if (!grid || !monthYearEl) return;
+
+            const { currentMonth, currentYear } = gameData.calendar;
+            const today = new Date();
+            monthYearEl.textContent = `${new Date(currentYear, currentMonth).toLocaleString('default', { month: 'long' })} ${currentYear}`;
+            grid.innerHTML = "";
+            
+            const firstDayOfMonth = new Date(currentYear, currentMonth, 1).getDay();
+            const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+            
+            for (let i = 0; i < firstDayOfMonth; i++) {
+                grid.insertAdjacentHTML('beforeend', '<div class="calendar-day other-month"></div>');
+            }
+            
+            for (let dayNum = 1; dayNum <= daysInMonth; dayNum++) {
+                const cellDate = new Date(currentYear, currentMonth, dayNum, 12);
+                const dStr = toDateStr(cellDate);
+                const dayCell = document.createElement("div");
+                dayCell.className = "calendar-day";
+                if (dStr === toDateStr(today)) {
+                    dayCell.classList.add("today");
+                }
+                dayCell.innerHTML = `<div class="calendar-day-number">${dayNum}</div>`;
+                
+                // ✨ NEW LOGIC STARTS HERE
+                let itemsForDay = [];
+                
+                // Find all items scheduled for this day
+                gameData.tasks.forEach(task => {
+                    // Case 1: It's a project with sub-tasks
+                    if (task.subTasks && task.subTasks.length > 0) {
+                        const relevantSubtask = task.subTasks.find(sub => sub.startDate === dStr);
+                        if (relevantSubtask) {
+                            itemsForDay.push(relevantSubtask);
+                        }
+                    } 
+                    // Case 2: It's a regular, standalone task
+                    else if (isOnDate(task, cellDate)) {
+                        itemsForDay.push(task);
+                    }
+                });
+
+                // Render the found items on the calendar day
+                itemsForDay.slice(0, 3).forEach(item => {
+                    // Use 'completedToday' for sub-tasks and regular tasks
+                    dayCell.innerHTML += `<div class="calendar-task ${item.completedToday ? 'completed' : ''}">${item.title}</div>`;
+                });
+                // ✨ NEW LOGIC ENDS HERE
+
+                dayCell.onclick = () => openDayView(dStr);
+                grid.appendChild(dayCell);
+            }
+        }
+
+        function isOnDate(task, cellDate) {
+            const dStr = toDateStr(cellDate);
+            if (task.frequency === 'weekly') {
+                if (task.startDate && dStr < task.startDate) return false;
+                if (task.dueDate && dStr > task.dueDate) return false;
+                return task.repeatingDays.includes(cellDate.getDay());
+            } else { return task.startDate === dStr; }
+        }
+        function changeMonth(direction) {
+            gameData.calendar.currentMonth += direction;
+            if (gameData.calendar.currentMonth > 11) { gameData.calendar.currentMonth = 0; gameData.calendar.currentYear++; }
+            else if (gameData.calendar.currentMonth < 0) { gameData.calendar.currentMonth = 11; gameData.calendar.currentYear--; }
+            renderCalendar(); saveGame();
+        }
+
+        function openDayView(dateStr) {
+            const overlay = document.getElementById("day-view-overlay");
+            if (!overlay) return;
+            overlay.dataset.currentDate = dateStr; 
+            document.body.classList.add("modal-open");
+            overlay.classList.add("active");
+            document.getElementById("day-view-title").textContent = new Date(dateStr + 'T12:00:00').toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' });
+            
+            document.getElementById('day-view-tasks').onclick = createTaskFromTimelineClick;
+            
+            renderDayViewTimeline(dateStr);
+            setupTimelineZoom();
+        }
+        
+        function closeDayView() {
+            const overlay = document.getElementById("day-view-overlay");
+            if (overlay) { 
+                overlay.classList.remove("active"); 
+                document.body.classList.remove("modal-open");
+                document.getElementById('day-view-tasks').onclick = null;
+            }
+        }
+        
+        function createTaskFromHourClick(hour) {
+            const overlay = document.getElementById("day-view-overlay");
+            const dateStr = overlay.dataset.currentDate;
+            if (!dateStr) return;
+
+            const startTimeStr = `${String(hour).padStart(2, '0')}:00`;
+            
+            const endHour = hour + 1;
+            const endTimeStr = (endHour > 23) ? "23:59" : `${String(endHour).padStart(2, '0')}:00`;
+
+            openTaskCreationModal({
+                date: dateStr,
+                startTime: startTimeStr,
+                endTime: endTimeStr
+            });
+        }
+        
+        // REPLACE your entire renderDayViewTimeline function with this
+        function renderDayViewTimeline(dateStr) {
+            if (!dateStr || !new Date(dateStr).getTime()) return;
+            const tasksLayer = document.getElementById("day-view-tasks"),
+                hoursCol = document.getElementById("day-view-hours");
+            const untimedList = document.getElementById("untimed-list");
+            const untimedEventsList = document.getElementById("untimed-events-list");
+            const alldayEventsList = document.getElementById("allday-events-list");
+
+            tasksLayer.innerHTML = ""; hoursCol.innerHTML = ""; untimedList.innerHTML = ""; alldayEventsList.innerHTML = ""; untimedEventsList.innerHTML = "";
+            
+            const HOUR_PX = gameData.dayView.hourPixels;
+            const toMinutes = s => { if (!s) return null; const [h, m] = s.split(':').map(Number); return h * 60 + m; };
+            tasksLayer.style.height = `${24 * HOUR_PX}px`;
+            const cellDate = new Date(dateStr + "T12:00:00");
+            
+            let itemsForDay = [];
+            gameData.tasks.forEach(task => {
+                if (task.subTasks && task.subTasks.length > 0) {
+                    const relevantSubtask = task.subTasks.find(sub => sub.startDate === dateStr);
+                    if (relevantSubtask) {
+                        itemsForDay.push({ ...relevantSubtask, parentDifficulty: task.difficulty });
+                    }
+                } 
+                else if (isOnDate(task, cellDate)) {
+                    itemsForDay.push(task);
+                }
+            });
+
+            itemsForDay.filter(t => !t.startTime && (t.difficulty > 0 || t.parentDifficulty > 0)).forEach(t => {
+                untimedList.innerHTML += `<div class="untimed-task ${t.completedToday ? 'completed' : ''}" onclick="toggleTaskCompletionFromView('${t.id}')">${t.title}</div>`;
+            });
+
+            itemsForDay.filter(t => !t.startTime && t.difficulty === 0).forEach(t => {
+                const isGCalEvent = t.category === 'GCal Event';
+                if (isGCalEvent) {
+                    alldayEventsList.innerHTML += `<div class="timed-event-item">${t.title}</div>`;
+                } else {
+                    untimedEventsList.innerHTML += `<div class="untimed-event-item">${t.title}</div>`;
+                }
+            });
+
+            const untimedQuestsWrapper = document.getElementById('untimed-quests-wrapper');
+            const untimedEventsWrapper = document.getElementById('untimed-events-wrapper');
+            const alldayWrapper = document.getElementById('allday-events-wrapper');
+            untimedQuestsWrapper.style.display = untimedList.innerHTML === '' && alldayEventsList.innerHTML === '' ? 'none' : 'block';
+            untimedEventsWrapper.style.display = untimedEventsList.innerHTML === '' ? 'none' : 'block';
+            
+            for (let i = 0; i < 24; i++) {
+                const h = ((i + 11) % 12 + 1);
+                const suffix = i >= 12 ? 'PM' : 'AM';
+                const hourText = (i === 0 || i === 12) ? `12${suffix}` : `${h}${suffix}`;
+                hoursCol.innerHTML += `<div style="height:${HOUR_PX}px; font-size:0.8rem; color:var(--text-muted); cursor: pointer; display: flex; align-items: flex-start; justify-content: flex-end; padding-top: 2px; padding-right: 8px;" onclick="createTaskFromHourClick(${i})">${hourText}</div>`;
+            }
+
+            let timelineHtml = '';
+            for (let i = 0; i < 24; i++) timelineHtml += `<div style="position: absolute; left: 0; right: 0; top: ${i * HOUR_PX}px; height: 1px; background: var(--border);"></div>`;
+
+            const timedTasks = itemsForDay
+                .filter(t => t.startTime)
+                // ✨ FIX: Handle tasks ending at midnight correctly
+                .map(t => {
+                    const startM = toMinutes(t.startTime);
+                    let endM = toMinutes(t.endTime);
+
+                    if (endM === null) {
+                        endM = startM + 60; // Default 1 hour duration
+                    } else if (endM === 0 && startM > 0) { // If end time is 00:00, treat it as the end of the day
+                        endM = 24 * 60; 
+                    }
+                    
+                    // Ensure end time is always after start time for same-day calculation
+                    if (endM <= startM) {
+                        endM = startM + 60; // Fallback to 1 hour if end time is invalid
+                    }
+
+                    return { item: t, startM: startM, endM: endM };
+                })
+                .sort((a, b) => a.startM - b.startM);
+            
+            const columns = [];
+            timedTasks.forEach(event => {
+                let placed = false;
+                for (const col of columns) {
+                    if (event.startM >= col[col.length - 1].endM) { col.push(event); placed = true; break; }
+                }
+                if (!placed) { columns.push([event]); }
+            });
+            const totalColumns = columns.length > 0 ? columns.length : 1;
+            const MIN_TASK_WIDTH_PX = 220;
+            tasksLayer.style.minWidth = `${totalColumns * MIN_TASK_WIDTH_PX}px`;
+            columns.forEach((col, colIndex) => {
+                col.forEach(e => {
+                    const top = e.startM * (HOUR_PX / 60);
+                    const height = Math.max(20, (e.endM - e.startM) * (HOUR_PX / 60) - 2);
+                    const left = colIndex * MIN_TASK_WIDTH_PX;
+                    const isEvent = e.item.difficulty === 0 && !e.item.parentDifficulty;
+                    const taskClass = isEvent ? 'timed-event-item' : `calendar-task-item ${e.item.completedToday ? 'completed' : ''}`;
+                    const style = `position: absolute; top:${top}px; height:${height}px; left: ${left}px; width: ${MIN_TASK_WIDTH_PX - 8}px; margin-left: 4px;`;
+                    timelineHtml += `<div class="${taskClass}" style="${style}" onclick="toggleTaskCompletionFromView('${e.item.id}')"><strong>${e.item.title}</strong></div>`;
+                });
+            });
+            tasksLayer.innerHTML = timelineHtml;
+        }
+
+        function format12Hour(timeStr) {
+            try {
+                if (!timeStr || !timeStr.includes(':')) return '';
+                const [hours, minutes] = timeStr.split(':');
+                const h = parseInt(hours, 10);
+                if (isNaN(h) || isNaN(parseInt(minutes, 10))) return '';
+                
+                const suffix = h >= 12 ? 'PM' : 'AM';
+                const h12 = ((h + 11) % 12 + 1);
+                return `${h12}:${minutes} ${suffix}`;
+            } catch (e) {
+                console.error("Could not format time:", timeStr, e);
+                return '';
+            }
+        }
+
+        function setupTimelineZoom() {
+            const scrollWrapper = document.querySelector(".day-view-scroll-wrapper");
+            const hoursColumn = document.getElementById("day-view-hours");
+
+            if (scrollWrapper && hoursColumn) {
+                hoursColumn.onwheel = (e) => {
+                    e.preventDefault();
+
+                    const overlay = scrollWrapper.closest('.modal-overlay');
+                    const currentDate = overlay.dataset.currentDate;
+                    if (!currentDate) return;
+
+                    const scrollPortion = scrollWrapper.scrollTop / scrollWrapper.scrollHeight;
+                    gameData.dayView.hourPixels = Math.max(30, Math.min(240, gameData.dayView.hourPixels + (e.deltaY < 0 ? 10 : -10)));
+                    renderDayViewTimeline(currentDate);
+                    
+                    if (scrollWrapper.scrollHeight > 0) {
+                        scrollWrapper.scrollTop = scrollPortion * scrollWrapper.scrollHeight;
+                    }
+                    saveGame();
+                };
+            }
+        }
+        
+        function createUntimedTaskFromView(event) {
+            if (event.target.closest('.untimed-task')) {
+                return; 
+            }
+
+            const overlay = document.getElementById("day-view-overlay");
+            const dateStr = overlay.dataset.currentDate;
+            if (!dateStr) return;
+
+            openTaskCreationModal({ date: dateStr, isUntimed: true });
+        }
+        
+        function createTaskFromTimelineClick(event) {
+            if (event.target.id !== 'day-view-tasks') return;
+
+            const overlay = document.getElementById("day-view-overlay");
+            const dateStr = overlay.dataset.currentDate;
+            if (!dateStr) return;
+
+            const hourPixels = gameData.dayView.hourPixels;
+            let minutesFromTop = (event.offsetY / hourPixels) * 60;
+            minutesFromTop = Math.round(minutesFromTop / 15) * 15;
+
+            const startHours = Math.floor(minutesFromTop / 60);
+            const startMinutes = minutesFromTop % 60;
+            const startTimeStr = `${String(startHours).padStart(2, '0')}:${String(startMinutes).padStart(2, '0')}`;
+
+            const endMinutesTotal = minutesFromTop + 60;
+            const endHours = Math.floor(endMinutesTotal / 60) % 24;
+            const endMinutes = endMinutesTotal % 60;
+            const endTimeStr = `${String(endHours).padStart(2, '0')}:${String(endMinutes).padStart(2, '0')}`;
+
+            openTaskCreationModal({
+                date: dateStr,
+                startTime: startTimeStr,
+                endTime: endTimeStr
+            });
+        }
+
+        function toggleTaskCompletionFromView(taskId) {
+            // Prevent the click from bubbling up to other elements
+            event.stopPropagation();
+
+            const { task } = findTaskAndParent(taskId);
+            if (!task) return;
+
+            // Toggle the task's completion status
+            if (task.completedToday) {
+                resetTaskToday(taskId);
+            } else {
+                completeTask(taskId);
+            }
+
+            // Refresh the main UI (which updates the dashboard and main calendar)
+            updateUI();
+
+            // Re-render the Day View modal to show the change instantly
+            const dayViewOverlay = document.getElementById('day-view-overlay');
+            if (dayViewOverlay.classList.contains('active')) {
+                const currentDate = dayViewOverlay.dataset.currentDate;
+                if (currentDate) {
+                    renderDayViewTimeline(currentDate);
+                }
+            }
+        }
+        
+
+        function updateDetailedPlayerStats() {
+            const { health, maxHealth, level, gold } = gameData.player;
+            const totalDamage = getTotalDamage();
+            const totalArmour = getTotalArmour();
+
+            // This part updates the top text-only stats
+            const prefixes = ['arena-view'];
+            prefixes.forEach(prefix => {
+                const healthEl = document.getElementById(`${prefix}-health`);
+                const damageEl = document.getElementById(`${prefix}-damage`);
+                const armourEl = document.getElementById(`${prefix}-armour`);
+                const levelEl = document.getElementById(`${prefix}-level`);
+                const goldEl = document.getElementById(`${prefix}-gold`);
+
+                if (healthEl) healthEl.textContent = `${health} / ${maxHealth}`;
+                if (damageEl) damageEl.textContent = totalDamage;
+                if (armourEl) armourEl.textContent = totalArmour;
+                if (levelEl) levelEl.textContent = level;
+                if (goldEl) goldEl.textContent = gold;
+            });
+
+            // Logic to control the player's HP bar
+            const playerHpSpan = document.getElementById('player-hp-arena');
+            const playerMaxHpSpan = document.getElementById('player-max-hp-arena');
+            const playerProgressFill = document.getElementById('player-progress-arena');
+
+            if (playerHpSpan && playerMaxHpSpan && playerProgressFill) {
+                const hpPercent = maxHealth > 0 ? (health / maxHealth) * 100 : 0;
+                playerHpSpan.textContent = health;
+                playerMaxHpSpan.textContent = maxHealth;
+                playerProgressFill.style.width = `${hpPercent}%`;
+            }
+
+            // Logic to control the player's Armour bar
+            const playerArmourSpan = document.getElementById('player-armour-arena');
+            const playerArmourProgressFill = document.getElementById('player-armour-progress-arena');
+
+            if (playerArmourSpan && playerArmourProgressFill) {
+                // Calculate percentage based on the max value we set
+                const armourPercent = Math.min(100, (totalArmour / ARMOUR_BAR_MAX) * 100);
+                playerArmourSpan.textContent = totalArmour;
+                playerArmourProgressFill.style.width = `${armourPercent}%`;
+            }
+        }
+
+        let eventCheckerInterval = null;
+        function startEventCompletionChecker() {
+            if (eventCheckerInterval) clearInterval(eventCheckerInterval);
+
+            eventCheckerInterval = setInterval(() => {
+                const now = new Date();
+                const todayStr = toDateStr(now);
+                let needsUpdate = false;
+
+                gameData.tasks.forEach(task => {
+                    if (task.difficulty === 0 && !task.completedToday && task.startDate === todayStr && task.endTime) {
+                        const eventEndTime = new Date(`${task.startDate}T${task.endTime}`);
+                        if (now > eventEndTime) {
+                            task.completedToday = true;
+                            needsUpdate = true;
+                        }
+                    }
+                });
+
+                if (needsUpdate) {
+                    console.log('Auto-completed past events.');
+                    updateUI();
+                    saveGame();
+                }
+            }, 60000);
+        }
+
+
+        function handleDeleteClick(btn, taskId) {
+            event.stopPropagation();
+
+            // Check if the button is already asking for confirmation
+            if (btn.dataset.confirming === 'true') {
+                // If it is, delete the task and refresh the entire UI
+                removeTask(taskId); // This function removes the task from your data
+                updateUI();         // This function redraws the screen
+            } else {
+                // If it's the first click, enter the confirmation state
+                const originalHTML = btn.innerHTML;
+                btn.dataset.confirming = 'true'; // Mark as confirming
+                
+                // Change the button's appearance
+                btn.textContent = 'Confirm?';
+                btn.classList.remove('btn-icon');
+
+                // Set a timer to automatically revert the button if not clicked again
+                setTimeout(() => {
+                    // Check if the button still exists and is still in the confirming state
+                    if (document.body.contains(btn) && btn.dataset.confirming === 'true') {
+                        btn.innerHTML = originalHTML;
+                        btn.classList.add('btn-icon');
+                        delete btn.dataset.confirming; // Remove the confirming state
+                    }
+                }, 3000); // 3-second window to confirm
+            }
+        }
+        
+        function openTaskCreationModal({ date, startTime = null, endTime = null, isUntimed = false, isEvent = false }) {
+            const modal = document.getElementById('task-creation-modal');
+            document.getElementById('modal-task-form').reset();
+
+            document.getElementById('modal-task-date').value = date;
+            
+            const timeDisplay = document.getElementById('modal-time-display');
+            const startTimeInput = document.getElementById('modal-display-startTime');
+            const endTimeInput = document.getElementById('modal-display-endTime');
+            const titleEl = document.getElementById('task-modal-title');
+            const difficultyContainer = document.getElementById('modal-difficulty-container');
+
+            if (isUntimed) {
+                titleEl.textContent = isEvent ? `Add Untimed Event` : `Add Untimed Quest`;
+                timeDisplay.style.display = 'none';
+            } else {
+                titleEl.textContent = `Add Quest for ${date}`;
+                startTimeInput.value = startTime;
+                endTimeInput.value = endTime;
+                timeDisplay.style.display = 'block';
+            }
+
+            difficultyContainer.style.display = isEvent ? 'none' : 'block';
+
+            const categorySelect = document.getElementById('modal-task-category');
+            categorySelect.innerHTML = ''; 
+            const categories = isEvent ? eventCategories : taskCategories;
+            categories.forEach(cat => {
+                const option = document.createElement('option');
+                option.value = cat; option.textContent = cat;
+                categorySelect.appendChild(option);
+            });
+
+            modal.classList.add('active');
+            document.getElementById('modal-task-title-input').focus();
+        }
+        
+        function handleModalTaskSubmit(event) {
+            event.preventDefault();
+            const form = event.target;
+            const difficultySlider = form.querySelector('#modal-difficulty-slider');
+            const difficultyContainer = document.getElementById('modal-difficulty-container');
+            
+            const difficulty = difficultyContainer.style.display === 'none' 
+                ? 0 
+                : parseInt(difficultySlider.value, 10);
+
+            const newTask = {
+                id: crypto.randomUUID(),
+                title: form.querySelector('#modal-task-title-input').value.trim(),
+                category: form.querySelector('#modal-task-category').value,
+                difficulty: difficulty,
+                startDate: form.querySelector('#modal-task-date').value,
+                startTime: form.querySelector('#modal-display-startTime').value || null,
+                endTime: form.querySelector('#modal-display-endTime').value || null,
+                frequency: 'once',
+                completedToday: false, 
+                streak: 0, 
+                lastCompletedISO: null,
+                dueDate: null,
+                repeatingDays: []
+            };
+
+            gameData.tasks.push(newTask);
+            closeTaskCreationModal();
+            renderDayViewTimeline(newTask.startDate);
+            updateUI();
+            saveGame();
+        }
+        
+        function closeTaskCreationModal() {
+            document.getElementById('task-creation-modal').classList.remove('active');
+        }
+
+        async function updateGoogleTaskStatus(googleTaskId, status) {
+            if (!googleTaskId) return;
+            try {
+                await gapi.client.tasks.tasks.patch({ tasklist: '@default', task: googleTaskId, resource: { id: googleTaskId, status: status }});
+            } catch (error) { console.error(`Failed to update Google Task ${googleTaskId}:`, error); }
+        }
+
+        document.addEventListener('DOMContentLoaded', initGame);
+        window.addEventListener('beforeunload', () => { stopPomodoroTimer(); saveGame(); });
+    </script>
+
+</body>
+</html>
