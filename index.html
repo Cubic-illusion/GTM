@@ -4,15 +4,13 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>QuestList — A Gamified Life</title>
-
-    <script src="config.js"></script>
     
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700&display=swap" rel="stylesheet">
     
-    <script async defer src="https://apis.google.com/js/api.js" onload="gapiLoaded()"></script>
-    <script async defer src="https://accounts.google.com/gsi/client" onload="gisLoaded()"></script>
+    <script async defer src="https://apis.google.com/js/api.js"></script>
+    <script async defer src="https://accounts.google.com/gsi/client"></script>
     
     <style>
         :root {
@@ -1080,32 +1078,71 @@
         let tokenClient;
         let gapiInited = false;
         let gisInited = false;
-        const API_KEY = CONFIG.API_KEY; 
-        const CLIENT_ID = CONFIG.CLIENT_ID;
+        let API_KEY;
+        let CLIENT_ID;
         const DISCOVERY_DOCS = ['https://www.googleapis.com/discovery/v1/apis/tasks/v1/rest', 'https://www.googleapis.com/discovery/v1/apis/calendar/v3/rest'];
         const SCOPES = 'https://www.googleapis.com/auth/tasks https://www.googleapis.com/auth/calendar.events';
-        
-        function gapiLoaded() { gapi.load('client', initializeGapiClient); }
+
+        async function startApp() {
+          try {
+            // 1. Fetch the secret keys from our Vercel function
+            const response = await fetch('/api/get-keys');
+            const keys = await response.json();
+            
+            API_KEY = keys.apiKey;
+            CLIENT_ID = keys.clientId;
+    
+            // 2. Load the necessary Google libraries
+            await new Promise((resolve, reject) => gapi.load('client', resolve));
+            
+            // 3. Now that we have the keys AND the libraries are loaded, initialize them
+            await initializeGapiClient();
+            gisLoaded();
+    
+            // 4. Finally, initialize the rest of your game
+            initGame();
+    
+          } catch (error) {
+            console.error("Failed to start the application:", error);
+            alert("A critical error occurred while starting the app. Please refresh.");
+          }
+        }
+
+    // This function now uses the keys we fetched
         async function initializeGapiClient() {
-            if (!API_KEY || API_KEY.includes('YOUR_API_KEY')) return console.warn("Google API Key not set.");
-            try {
-                await gapi.client.init({ apiKey: API_KEY, discoveryDocs: DISCOVERY_DOCS });
-                gapiInited = true; maybeEnableAuthButton();
-            } catch(e) { console.error("Error initializing GAPI client", e); }
+            if (!API_KEY) return console.error("API Key is not available.");
+            await gapi.client.init({
+                apiKey: API_KEY,
+                discoveryDocs: DISCOVERY_DOCS
+            });
+            gapiInited = true;
+            maybeEnableAuthButton();
         }
+    
+        // This function also uses the keys we fetched
         function gisLoaded() {
-            if (!CLIENT_ID || CLIENT_ID.includes('YOUR_CLIENT_ID')) return console.warn("Google Client ID not set.");
-            try {
-                tokenClient = google.accounts.oauth2.initTokenClient({
-                    client_id: CLIENT_ID, scope: SCOPES,
-                    callback: (tokenResponse) => {
-                        if (tokenResponse.error) { throw tokenResponse; }
-                        updateSigninStatus(true); 
-                    },
-                });
-                gisInited = true; maybeEnableAuthButton();
-            } catch (e) { console.error("Error initializing Google Sign-In", e); }
+            if (!CLIENT_ID) return console.error("Client ID is not available.");
+            tokenClient = google.accounts.oauth2.initTokenClient({
+                client_id: CLIENT_ID,
+                scope: SCOPES,
+                callback: (tokenResponse) => {
+                    if (tokenResponse.error) { throw tokenResponse; }
+                    updateSigninStatus(true); 
+                },
+            });
+            gisInited = true;
+            maybeEnableAuthButton();
         }
+    
+        // This triggers the entire process once the page is ready
+        window.onload = () => {
+          startApp();
+        };
+
+        
+        const googleApiScript = document.querySelector('script[src^="https://apis.google.com/js/api.js"]');
+        googleApiScript.onload = () => {
+            fetchKeysAndInit();
         function maybeEnableAuthButton() {
             if (gapiInited && gisInited) {
                 const sidebarBtn = document.getElementById('sidebar-auth-button');
@@ -3185,3 +3222,4 @@
 
 </body>
 </html>
+
