@@ -1201,10 +1201,12 @@
         async function runSync() {
             if (gapi.client.getToken() === null) return;
             alert('Syncing with Google...');
+            
             await synchronizeWithGoogleCalendar(); 
             await synchronizeWithGoogleTasks();    
+            saveGame();
             alert('Sync complete!');
-            updateUI(); 
+            updateUI();
         }
 
         async function createGoogleCalendarEvent(task) {
@@ -3113,3 +3115,4 @@
 
 </body>
 </html>
+
