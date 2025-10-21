@@ -2070,8 +2070,43 @@
             completeTask(taskId); 
             updateUI();           
         }
+        async function completeTask(taskId) {
+            const { task, parent } = findTaskAndParent(taskId);
+            if (!task || task.completedToday) return;
 
-        function resetTaskToday(taskId) {
+            task.completedToday = true;
+
+            if (task.googleCalendarEventId) {
+                updateGoogleEventStatus(taskId, true);
+            } else if (task.googleTaskId) {
+                await updateGoogleTaskStatus(task.googleTaskId, 'completed');
+            }
+
+            let difficulty = parent ? parent.difficulty : task.difficulty;
+            if (difficulty > 0) {
+                const healthRegen = gameData.player.upgrades.find(u => u.type === 'healthRegen').level * gameData.player.upgrades.find(u => u.type === 'healthRegen').bonus;
+                gameData.player.health = Math.min(gameData.player.maxHealth, gameData.player.health + healthRegen);
+                const damage = Math.round(getTotalDamage() * (0.6 + 0.2 * difficulty));
+                gameData.enemy.hp = Math.max(0, gameData.enemy.hp - damage);
+                gameData.player.xp += 15 * difficulty;
+                gameData.player.gold += 5 * difficulty;
+                levelUpCheck();
+                if (gameData.enemy.hp === 0) {
+                    gameData.player.xp += gameData.enemy.rewardXp;
+                    gameData.player.gold += gameData.enemy.rewardGold;
+                    levelUpCheck();
+                    gameData.enemy = seedEnemy(gameData.enemy.level + 1);
+                }
+                if (parent && parent.subTasks.every(st => st.completedToday)) {
+                    parent.completedToday = true;
+                    gameData.player.xp += 30 * parent.difficulty;
+                    gameData.player.gold += 15 * parent.difficulty;
+                    levelUpCheck();
+                }
+            }
+            saveGame();
+        };
+        async function resetTaskToday(taskId) {
             const { task, parent } = findTaskAndParent(taskId);
             if (!task || !task.completedToday) return;
 
@@ -2080,7 +2115,7 @@
             if (task.googleCalendarEventId) {
                 updateGoogleEventStatus(taskId, false);
             } else if (task.googleTaskId) {
-                updateGoogleTaskStatus(task.googleTaskId, 'needsAction');
+                await updateGoogleTaskStatus(task.googleTaskId, 'needsAction');
             }
 
             let difficulty = parent ? parent.difficulty : task.difficulty;
@@ -2392,43 +2427,6 @@
                 startBtn.setAttribute('onclick', 'startBreakSession()');
             }
         }
-
-        function completeTask(taskId) {
-            const { task, parent } = findTaskAndParent(taskId);
-            if (!task || task.completedToday) return;
-
-            task.completedToday = true;
-
-            if (task.googleCalendarEventId) {
-                updateGoogleEventStatus(taskId, true);
-            } else if (task.googleTaskId) {
-                updateGoogleTaskStatus(task.googleTaskId, 'completed');
-            }
-
-            let difficulty = parent ? parent.difficulty : task.difficulty;
-            if (difficulty > 0) {
-                const healthRegen = gameData.player.upgrades.find(u => u.type === 'healthRegen').level * gameData.player.upgrades.find(u => u.type === 'healthRegen').bonus;
-                gameData.player.health = Math.min(gameData.player.maxHealth, gameData.player.health + healthRegen);
-                const damage = Math.round(getTotalDamage() * (0.6 + 0.2 * difficulty));
-                gameData.enemy.hp = Math.max(0, gameData.enemy.hp - damage);
-                gameData.player.xp += 15 * difficulty;
-                gameData.player.gold += 5 * difficulty;
-                levelUpCheck();
-                if (gameData.enemy.hp === 0) {
-                    gameData.player.xp += gameData.enemy.rewardXp;
-                    gameData.player.gold += gameData.enemy.rewardGold;
-                    levelUpCheck();
-                    gameData.enemy = seedEnemy(gameData.enemy.level + 1);
-                }
-                if (parent && parent.subTasks.every(st => st.completedToday)) {
-                    parent.completedToday = true;
-                    gameData.player.xp += 30 * parent.difficulty;
-                    gameData.player.gold += 15 * parent.difficulty;
-                    levelUpCheck();
-                }
-            }
-            saveGame();
-        };
 
         function togglePomodoro() {
             if (gameData.pomodoro.running) {
@@ -3150,4 +3148,5 @@
 
 </body>
 </html>
+
 
