@@ -3112,24 +3112,6 @@
             renderDayViewTimeline(newTask.startDate);
             updateUI();
         }
-
-            gameData.tasks.push(newTask);
-            if (gapi.client.getToken()) {
-                if (newTask.difficulty > 0) { 
-                    console.log("Modal: Creating Google Task...");
-                    const newTaskId = await createGoogleTask(newTask);
-                    if (newTaskId) newTask.googleTaskId = newTaskId;
-                } else { 
-                    console.log("Modal: Creating Google Calendar Event...");
-                    const newEventData = await createGoogleCalendarEvent(newTask);
-                    if (newEventData) newTask.googleCalendarEventId = newEventData.id;
-                }
-            }
-            closeTaskCreationModal();
-            renderDayViewTimeline(newTask.startDate);
-            updateUI();
-            saveGame();
-        }
         
         function closeTaskCreationModal() {
             document.getElementById('task-creation-modal').classList.remove('active');
@@ -3148,5 +3130,3 @@
 
 </body>
 </html>
-
-
