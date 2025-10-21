@@ -683,7 +683,7 @@
                     <div class="card">
                          <h3 class="card-title">New Item</h3>
                          <p class="card-description">Add quests for XP, or schedule events on your calendar.</p>
-                         <form onsubmit="addTask(event)">
+                         <form onsubmit="(event)">
                             <div class="form-group">
                                 <label class="label">Type</label>
                                 <div class="type-toggle">
@@ -1949,8 +1949,11 @@
                     const newEventData = await createGoogleCalendarEvent(newTaskObject);
                     if (newEventData) newTaskObject.googleCalendarEventId = newEventData.id;
                 }
+                saveGame();
+
             } else {
                 console.log("❌ User is NOT signed in. Skipping immediate Google sync.");
+                saveGame();
             }
             
             form.reset();
@@ -1958,7 +1961,6 @@
             hideTimeInputs();
             toggleFormFields('task');
             updateUI();
-            saveGame();
             console.log("--- addTask Finished ---");
         };
 
@@ -3092,6 +3094,28 @@
             };
 
             gameData.tasks.push(newTask);
+
+            if (gapi.client.getToken()) {
+                if (newTask.difficulty > 0) {
+                    console.log("Modal: Creating Google Task...");
+                    const newTaskId = await createGoogleTask(newTask);
+                    if (newTaskId) newTask.googleTaskId = newTaskId;
+                } else {
+                    console.log("Modal: Creating Google Calendar Event...");
+                    const newEventData = await createGoogleCalendarEvent(newTask);
+                    if (newEventData) newTask.googleCalendarEventId = newEventData.id;
+                }
+                saveGame();
+            } else {
+                saveGame();
+            }
+
+            closeTaskCreationModal();
+            renderDayViewTimeline(newTask.startDate);
+            updateUI();
+        }
+
+            gameData.tasks.push(newTask);
             if (gapi.client.getToken()) {
                 if (newTask.difficulty > 0) { 
                     console.log("Modal: Creating Google Task...");
@@ -3126,5 +3150,6 @@
 
 </body>
 </html>
+
 
 
